@@ -618,9 +618,16 @@ export default function HomePage() {
                     <button
                       onClick={async () => {
                         try {
+                          // Call server-side signout protocol to ensure cookies are purged
+                          await fetch('/api/auth/signout', { method: 'POST' })
+
+                          // Client-side cleanup
                           await signOut()
+
                           setProfileOpen(false)
-                          window.location.reload()
+
+                          // Final institutional purge: redirect to origin
+                          window.location.replace(window.location.origin)
                         } catch (error) {
                           console.error('Logout error:', error)
                           showAlert('Session Error', 'The institutional handshake was interrupted. Failed to terminate session.')

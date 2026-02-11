@@ -158,7 +158,6 @@ export default function ReceiptScanner() {
                                 name="receipt_binary"
                                 type="file"
                                 accept="image/*"
-                                capture="environment"
                                 onChange={onFileChange}
                                 className="hidden"
                                 disabled={isScanning}

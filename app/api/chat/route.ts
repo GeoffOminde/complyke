@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase-server'
 
+const isGeminiEnabled = !!process.env.GEMINI_API_KEY
+const apiKey = isGeminiEnabled ? process.env.GEMINI_API_KEY : process.env.OPENAI_API_KEY
+
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || '',
+  apiKey: apiKey || '',
+  baseURL: isGeminiEnabled ? "https://generativelanguage.googleapis.com/v1beta/openai/" : undefined
 })
 
 export async function POST(req: NextRequest) {
@@ -21,9 +25,9 @@ export async function POST(req: NextRequest) {
 
     const { messages } = await req.json()
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!apiKey) {
       return NextResponse.json(
-        { error: 'OpenAI API key not configured' },
+        { error: 'AI Protocol Error: Neither Gemini nor OpenAI keys are configured. Please check your institutional vault (.env).' },
         { status: 500 }
       )
     }
@@ -189,7 +193,7 @@ If you deduct it arbitrarily, it is illegal.
 Note: This is for information only. For court cases, please consult a licensed Advocate."`
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: isGeminiEnabled ? 'gemini-1.5-flash' : 'gpt-4o',
       messages: [
         { role: 'system', content: systemPrompt },
         ...messages,

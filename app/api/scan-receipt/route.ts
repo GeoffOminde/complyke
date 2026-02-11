@@ -3,10 +3,6 @@ import OpenAI from 'openai'
 import Tesseract from 'tesseract.js'
 import { createClient } from '@/lib/supabase-server'
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY || '',
-})
-
 interface ReceiptData {
     merchantName: string | null
     kraPin: string | null
@@ -25,9 +21,9 @@ export async function POST(req: NextRequest) {
     try {
         // Authenticate User
         const supabase = await createClient()
-        const { data: { user }, error } = await supabase.auth.getUser()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-        if (error || !user) {
+        if (authError || !user) {
             return NextResponse.json(
                 { error: 'Unauthorized: Institutional session required' },
                 { status: 401 }
@@ -44,111 +40,115 @@ export async function POST(req: NextRequest) {
             )
         }
 
-        if (!process.env.OPENAI_API_KEY) {
+        const isGeminiEnabled = !!process.env.GEMINI_API_KEY
+        const isOpenAIEnabled = !!process.env.OPENAI_API_KEY
+
+        if (!isGeminiEnabled && !isOpenAIEnabled) {
             return NextResponse.json(
-                { error: 'OpenAI API key not configured' },
+                { error: 'AI Protocol Error: No active AI engine configured. Please check your institutional vault (.env).' },
                 { status: 500 }
             )
         }
 
-        // Convert image to base64 for OCR
         const arrayBuffer = await imageFile.arrayBuffer()
         const buffer = Buffer.from(arrayBuffer)
+        const base64Image = buffer.toString('base64')
 
-        // Perform OCR using Tesseract.js
-        console.log('Starting OCR...')
-        const { data: { text } } = await Tesseract.recognize(
-            buffer,
-            'eng',
-            {
-                logger: (m) => console.log(m),
-            }
-        )
+        let extractedData: any = {}
+        let category = 'Other'
+        let rawText = ''
 
-        console.log('OCR Text:', text)
+        if (isGeminiEnabled) {
+            // ============================================================================
+            // GEMINI 1.5 FLASH: END-TO-END VISION EXTRACTION (FREE TIER)
+            // ============================================================================
+            console.log('Utilizing Gemini Statutory Vision Engine...')
 
-        // Use GPT-4o to extract structured data from OCR text
-        const extractionPrompt = `You are a receipt data extraction expert for Kenyan businesses.
+            const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [
+                            {
+                                text: `Extract data from this Kenyan receipt. Respond ONLY with valid JSON.
+                                {
+                                  "merchantName": "string",
+                                  "kraPin": "string (format P05... or A00...)",
+                                  "totalAmount": number,
+                                  "date": "YYYY-MM-DD",
+                                  "items": ["item1", "item2"],
+                                  "etimsSignature": "string (Look for CUSN, Invoice Number, or QR data)",
+                                  "category": "ONE of: Transport, Office Supplies, Utilities, Professional Services, Equipment, Marketing, Other"
+                                }`
+                            },
+                            {
+                                inline_data: {
+                                    mime_type: imageFile.type,
+                                    data: base64Image
+                                }
+                            }
+                        ]
+                    }],
+                    generationConfig: {
+                        response_mime_type: "application/json"
+                    }
+                })
+            })
 
-Extract the following information from this receipt text:
-1. Merchant Name
-2. KRA PIN (format: P051234567X or similar)
-3. Total Amount (in KES)
-4. Date
-5. List of items purchased
+            const result = await geminiResponse.json()
+            const contentText = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
+            extractedData = JSON.parse(contentText)
+            category = extractedData.category || 'Other'
+            rawText = `[Gemini Vision Extraction Successful]`
 
-Receipt Text:
-${text}
+        } else {
+            // ============================================================================
+            // LEGACY: TESSERACT + OPENAI FALLBACK
+            // ============================================================================
+            console.log('Falling back to Legacy Tesseract OCR...')
+            const { data: { text } } = await Tesseract.recognize(buffer, 'eng')
+            rawText = text
 
-Respond ONLY with valid JSON in this exact format:
-{
-  "merchantName": "string or null",
-  "kraPin": "string or null",
-  "totalAmount": number or null,
-  "date": "YYYY-MM-DD or null",
-  "items": ["item1", "item2"],
-  "etimsSignature": "string or null (Look for Control Unit Serial Number (CUSN) or Invoice Number like OSCU... or KRA...)"
-}
+            const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+            const extractionResponse = await openai.chat.completions.create({
+                model: 'gpt-4o',
+                messages: [{
+                    role: 'system',
+                    content: 'Extract receipt data. Respond with JSON only.'
+                }, {
+                    role: 'user',
+                    content: text
+                }],
+                response_format: { type: 'json_object' }
+            })
 
-If you cannot find a field, use null. Be precise.`
-
-        const extractionResponse = await openai.chat.completions.create({
-            model: 'gpt-4o',
-            messages: [
-                { role: 'system', content: 'You are a precise data extraction assistant. Always respond with valid JSON only.' },
-                { role: 'user', content: extractionPrompt }
-            ],
-            temperature: 0.1,
-            response_format: { type: 'json_object' }
-        })
-
-        const extractedData = JSON.parse(extractionResponse.choices[0]?.message?.content || '{}')
+            extractedData = JSON.parse(extractionResponse.choices[0]?.message?.content || '{}')
+        }
 
         // Statutory Verification Logic
         const kraPinPattern = /^[AP][0-9]{9}[A-Z]$/i
-        const isPinValid = extractedData.kraPin && kraPinPattern.test(extractedData.kraPin.trim())
+        const pin = (extractedData.kraPin || '').trim().toUpperCase()
+        const isPinValid = kraPinPattern.test(pin)
 
         // Simulating Real-time KRA iTax/eTIMS Handshake
-        // In a production environment, this would call the GavaConnect or eTIMS Ledger API
         let verificationStatus: 'verified' | 'unverified' | 'failed' = 'unverified'
         if (isPinValid && extractedData.etimsSignature) {
             verificationStatus = 'verified'
         } else if (isPinValid) {
-            verificationStatus = 'unverified' // Valid PIN format but missing eTIMS signature
-        } else if (extractedData.kraPin) {
-            verificationStatus = 'failed' // PIN provided but failed format protocol
+            verificationStatus = 'unverified'
+        } else if (pin) {
+            verificationStatus = 'failed'
         }
 
         const isDeductible = verificationStatus === 'verified'
 
-        // Use AI to categorize the expense
-        const categorizationPrompt = `Based on these items: ${extractedData.items.join(', ')}, categorize this expense into ONE of these categories:
-- Transport Expense
-- Office Supplies
-- Utilities
-- Professional Services
-- Equipment
-- Marketing
-- Other
-
-Respond with ONLY the category name, nothing else.`
-
-        const categoryResponse = await openai.chat.completions.create({
-            model: 'gpt-4o',
-            messages: [
-                { role: 'user', content: categorizationPrompt }
-            ],
-            temperature: 0.3,
-            max_tokens: 20
-        })
-
-        const category = categoryResponse.choices[0]?.message?.content?.trim() || 'Other'
-
         const receiptData: ReceiptData = {
             ...extractedData,
+            kraPin: pin || null,
             isDeductible,
-            category,
-            rawText: text,
+            category: category || extractedData.category || 'Other',
+            rawText,
             verificationStatus,
             auditHash: `CKE-AUD-${Math.random().toString(36).substring(2, 10).toUpperCase()}`
         }
@@ -159,9 +159,9 @@ Respond with ONLY the category name, nothing else.`
         })
 
     } catch (error: any) {
-        console.error('Receipt Scan Error:', error)
+        console.error('Tax Lens Statutory Error:', error)
         return NextResponse.json(
-            { error: error.message || 'Failed to process receipt' },
+            { error: error.message || 'Failed to process statutory asset' },
             { status: 500 }
         )
     }
