@@ -1,0 +1,2 @@
+﻿ALTER TABLE contracts ADD COLUMN signed_copy_url TEXT;
+CREATE TABLE notifications (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE, type TEXT, message TEXT, phone_number TEXT, status TEXT, created_at TIMESTAMPTZ DEFAULT NOW()); ALTER TABLE notifications ENABLE ROW LEVEL SECURITY; CREATE POLICY "Users can view own notifications" ON notifications FOR SELECT USING (auth.uid() = user_id);
