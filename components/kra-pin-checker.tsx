@@ -4,70 +4,122 @@ import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Search, CheckCircle2, AlertCircle, Fingerprint } from "lucide-react"
+import { Search, CheckCircle2, AlertCircle, Fingerprint, ExternalLink } from "lucide-react"
 import { validateKRAPINFormat } from "@/lib/kra-validation"
 
 export default function KRAPINChecker() {
     const [pin, setPin] = useState("")
-    const [result, setResult] = useState<ReturnType<typeof validateKRAPINFormat> | null>(null)
+    const [result, setResult] = useState<any>(null)
+    const [isLoading, setIsLoading] = useState(false)
 
-    const handleCheck = () => {
-        const validation = validateKRAPINFormat(pin)
-        setResult(validation)
+    const handleCheck = async () => {
+        if (!pin) return
+        setIsLoading(true)
+        setResult(null)
+
+        try {
+            const response = await fetch('/api/kra/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pin: pin.toUpperCase() })
+            })
+            const data = await response.json()
+            setResult(data)
+        } catch (err) {
+            console.error('Handshake failed:', err)
+            setResult({ valid: false, message: 'Institutional handshake failed. Please check network protocols.' })
+        } finally {
+            setIsLoading(false)
+        }
     }
 
     return (
         <Card className="glass-card shadow-lg border-none overflow-hidden group">
-            <div className={`h-1 w-full transition-colors duration-500 ${result ? (result.valid ? 'bg-emerald-500' : 'bg-rose-500') : 'bg-navy-200'}`} />
+            <div className={`h-1 w-full transition-colors duration-500 ${result ? (result.authentic ? 'bg-emerald-500' : 'bg-amber-500') : 'bg-navy-200'}`} />
             <CardHeader className="pb-4">
                 <div className="flex items-center gap-3">
-                    <div className="bg-navy-50 p-2 rounded-lg group-hover:bg-navy-100 transition-colors">
-                        <Fingerprint className="h-5 w-5 text-navy-800" />
+                    <div className="bg-navy-950 p-2 rounded-lg group-hover:bg-navy-900 transition-colors shadow-lg">
+                        <Fingerprint className="h-5 w-5 text-white" />
                     </div>
-                    <CardTitle className="text-lg font-bold text-navy-900">
-                        KRA PIN Validator
+                    <CardTitle className="text-lg font-black text-navy-950 uppercase tracking-tight">
+                        Statutory PIN Audit
                     </CardTitle>
                 </div>
-                <CardDescription className="text-navy-500 font-medium text-xs">
-                    Institutional verification of Individual & Business PIN formats
+                <CardDescription className="text-navy-500 font-medium text-[10px] uppercase tracking-widest mt-1">
+                    Database Handshake • 2026 iTax Ledger
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="space-y-4">
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 p-1.5 bg-navy-50 rounded-2xl border border-navy-100 focus-within:border-navy-200 transition-all">
                         <Input
-                            placeholder="e.g., P051234567X"
+                            placeholder="P051234567X"
                             value={pin}
                             onChange={(e) => setPin(e.target.value)}
-                            className="bg-white border-navy-100 font-mono focus:ring-navy-500 uppercase h-11"
+                            className="border-none bg-transparent font-mono focus-visible:ring-0 uppercase h-11 shadow-none"
                         />
-                        <Button onClick={handleCheck} className="h-11 px-6 bg-navy-900 shadow-sm hover:shadow-md transition-all">
-                            Check
+                        <Button
+                            onClick={handleCheck}
+                            disabled={isLoading}
+                            className="h-11 px-8 bg-navy-950 text-white rounded-xl shadow-xl hover:bg-navy-900 transition-all font-black uppercase text-[10px] tracking-widest"
+                        >
+                            {isLoading ? 'Verifying...' : 'Audit PIN'}
                         </Button>
                     </div>
 
                     {result && (
-                        <div className={`p-4 rounded-2xl flex items-start gap-3 animate-fade-in ${result.valid
-                                ? 'bg-emerald-50/50 border border-emerald-100 shadow-sm'
-                                : 'bg-rose-50/50 border border-rose-100'
+                        <div className={`p-5 rounded-[24px] flex items-start gap-4 animate-slide-in-up ${result.authentic
+                            ? 'bg-emerald-50 border border-emerald-100'
+                            : result.formatValid ? 'bg-amber-50 border border-amber-100' : 'bg-rose-50 border border-rose-100'
                             }`}>
-                            <div className={`p-2 rounded-xl scale-90 ${result.valid ? 'bg-emerald-100/50 text-emerald-600' : 'bg-rose-100/50 text-rose-600'}`}>
-                                {result.valid ? (
-                                    <CheckCircle2 className="h-5 w-5" />
+                            <div className={`p-2.5 rounded-xl shrink-0 ${result.authentic ? 'bg-emerald-100 text-emerald-600' : result.formatValid ? 'bg-amber-100 text-amber-600' : 'bg-rose-100 text-rose-600'}`}>
+                                {result.authentic ? (
+                                    <CheckCircle2 className="h-6 w-6" />
                                 ) : (
-                                    <AlertCircle className="h-5 w-5" />
+                                    <AlertCircle className="h-6 w-6" />
                                 )}
                             </div>
                             <div className="flex-1">
-                                <p className={`text-sm font-black uppercase tracking-tight ${result.valid ? 'text-emerald-900' : 'text-rose-900'}`}>
-                                    {result.valid ? 'Format Verified' : 'Validation Failed'}
-                                </p>
-                                <p className={`text-xs font-medium leading-relaxed mt-0.5 ${result.valid ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                <div className="flex items-center justify-between gap-4">
+                                    <p className={`text-sm font-black uppercase tracking-tight ${result.authentic ? 'text-emerald-900' : result.formatValid ? 'text-amber-900' : 'text-rose-900'}`}>
+                                        {result.authentic ? 'Statutory Verified' : result.formatValid ? 'Handshake Unverified' : 'Validation Failed'}
+                                    </p>
+                                    {result.auditId && (
+                                        <span className="text-[9px] font-black text-navy-400 font-mono tracking-tighter">{result.auditId}</span>
+                                    )}
+                                </div>
+                                <p className={`text-xs font-semibold leading-relaxed mt-1 ${result.authentic ? 'text-emerald-700' : result.formatValid ? 'text-amber-700' : 'text-rose-700'}`}>
                                     {result.message}
                                 </p>
-                                {result.valid && result.pinType && (
-                                    <div className="mt-2 inline-flex items-center px-2 py-0.5 rounded bg-emerald-600/10 text-[10px] font-black text-emerald-700 uppercase tracking-tighter border border-emerald-200">
-                                        PIN TYPE: {result.pinType}
+
+                                {result.valid && (
+                                    <div className="mt-4 flex flex-wrap gap-2">
+                                        <div className="px-3 py-1 rounded-full bg-navy-900/5 text-[9px] font-black text-navy-600 uppercase tracking-widest border border-navy-100">
+                                            TYPE: {result.pinType || 'N/A'}
+                                        </div>
+                                        <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${result.authentic ? 'bg-emerald-500/10 text-emerald-700 border-emerald-200' : 'bg-amber-500/10 text-amber-700 border-amber-200'}`}>
+                                            LEDGER: {result.status || 'UNRANKED'}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {result.grounding && (
+                                    <div className="mt-5 pt-4 border-t border-navy-100">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <Search className="h-3 w-3 text-navy-400" />
+                                            <p className="text-[9px] font-black text-navy-400 uppercase tracking-widest">Grounding Citations via Vertex AI</p>
+                                        </div>
+                                        <div className="space-y-2">
+                                            {result.grounding.citations.map((cite: any, idx: number) => (
+                                                <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-navy-50 hover:border-navy-200 transition-colors cursor-pointer group/cite">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-1 h-1 rounded-full bg-navy-300 group-hover/cite:bg-navy-600 transition-colors" />
+                                                        <p className="text-[10px] font-bold text-navy-800">{cite.title}</p>
+                                                    </div>
+                                                    <ExternalLink className="h-3 w-3 text-navy-300 group-hover/cite:text-navy-900 transition-colors" />
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
                             </div>
