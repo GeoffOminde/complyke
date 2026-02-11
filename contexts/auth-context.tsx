@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Authorized Administrator Override for local state
             const enhancedProfile = {
                 ...data,
-                role: (data.role || (email?.toLowerCase() === 'geoffominde8@gmail.com' ? 'super-admin' : data.role))
+                role: (email?.toLowerCase() === 'geoffominde8@gmail.com' ? 'super-admin' : (data.role || 'user'))
             }
             setProfile(enhancedProfile)
         } catch (error: any) {
