@@ -1,6 +1,6 @@
 # ComplyKe - Compliance-as-a-Service for Kenyan SMEs
 
-![ComplyKe Logo](public/logo.png)
+![ComplyKe Logo](public/logo.svg)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Open Source](https://img.shields.io/badge/Open%20Source-❤️-red.svg)](https://github.com)

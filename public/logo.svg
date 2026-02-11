@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100" fill="none">
+  <!-- Dynamic Shield Icon -->
+  <path d="M50 10 C 50 10, 20 20, 20 45 C 20 75, 50 90, 50 90 C 50 90, 80 75, 80 45 C 80 20, 50 10, 50 10 Z" fill="#1e3a8a" stroke="#059669" stroke-width="3"/>
+  <path d="M40 45 L 50 55 L 65 35" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Text: Comply -->
+  <text x="100" y="65" font-family="Arial, sans-serif" font-weight="bold" font-size="48" fill="#1e3a8a">Comply</text>
+  
+  <!-- Text: Ke -->
+  <text x="275" y="65" font-family="Arial, sans-serif" font-weight="bold" font-size="48" fill="#059669">Ke</text>
+  
+  <!-- Tagline -->
+  <text x="102" y="85" font-family="Arial, sans-serif" font-size="12" fill="#64748b" letter-spacing="1">INSTITUTIONAL COMPLIANCE</text>
+</svg>
