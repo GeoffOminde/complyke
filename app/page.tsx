@@ -49,8 +49,42 @@ export default function HomePage() {
   const [showNotificationSettingsModal, setShowNotificationSettingsModal] = useState(false)
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
   const [show2FAModal, setShow2FAModal] = useState(false)
+  const [prefLanguage, setPrefLanguage] = useState("English (Business)")
+  const [prefCurrency, setPrefCurrency] = useState("KES (Kenyan Shillings)")
 
-  // Profile Form State
+  useEffect(() => {
+    if (profile) {
+      setTwoFactorEnabled(profile.mfa_enabled || false)
+      setPrefLanguage(profile.preferred_language || "English (Business)")
+      setPrefCurrency(profile.preferred_currency || "KES (Kenyan Shillings)")
+    }
+  }, [profile])
+
+  const handleSecurityUpdate = async (field: string, value: any) => {
+    if (!user) return
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ [field]: value })
+        .eq('id', user.id)
+      if (error) throw error
+    } catch (err: any) {
+      console.error('Security protocol update failure:', err.message)
+    }
+  }
+
+  const handlePasswordReset = async () => {
+    if (!user?.email) return
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: window.location.origin
+      })
+      if (error) throw error
+      showToast('🔐 Cryptographic reset link dispatched to ' + user.email, 'info')
+    } catch (err: any) {
+      showAlert('Vault Auth Error', 'Protocol failed: ' + err.message)
+    }
+  }
   const [profileForm, setProfileForm] = useState({
     business_name: "",
     kra_pin: "",
@@ -255,7 +289,16 @@ export default function HomePage() {
                     <p className="font-bold text-navy-900">Language</p>
                     <p className="text-sm text-navy-500 font-medium">Localization for dashboard and reports</p>
                   </div>
-                  <select className="px-4 py-2 rounded-xl border border-navy-200 focus:ring-2 focus:ring-navy-900 outline-none text-sm font-bold bg-white">
+                  <select
+                    value={prefLanguage}
+                    onChange={async (e) => {
+                      const val = e.target.value
+                      setPrefLanguage(val)
+                      await handleSecurityUpdate('preferred_language', val)
+                      showToast(`🌍 Language protocol updated to ${val}`)
+                    }}
+                    className="px-4 py-2 rounded-xl border border-navy-200 focus:ring-2 focus:ring-navy-900 outline-none text-sm font-bold bg-white"
+                  >
                     <option>English (Business)</option>
                     <option>Swahili</option>
                   </select>
@@ -266,7 +309,16 @@ export default function HomePage() {
                     <p className="font-bold text-navy-900">Currency Display</p>
                     <p className="text-sm text-navy-500 font-medium">Monetary units for tax calculations</p>
                   </div>
-                  <select className="px-4 py-2 rounded-xl border border-navy-200 focus:ring-2 focus:ring-navy-900 outline-none text-sm font-bold bg-white">
+                  <select
+                    value={prefCurrency}
+                    onChange={async (e) => {
+                      const val = e.target.value
+                      setPrefCurrency(val)
+                      await handleSecurityUpdate('preferred_currency', val)
+                      showToast(`💰 Monetary protocol updated to ${val}`)
+                    }}
+                    className="px-4 py-2 rounded-xl border border-navy-200 focus:ring-2 focus:ring-navy-900 outline-none text-sm font-bold bg-white"
+                  >
                     <option>KES (Kenyan Shillings)</option>
                     <option>USD (Reporting Only)</option>
                   </select>
@@ -326,7 +378,7 @@ export default function HomePage() {
               </h2>
               <div className="space-y-4">
                 <button
-                  onClick={() => showToast('🔐 Secure password reset initiated. Link sent to registered email.', 'info')}
+                  onClick={handlePasswordReset}
                   className="w-full flex items-center justify-between p-5 rounded-2xl border border-navy-50 hover:bg-navy-50/50 transition-all text-left group"
                 >
                   <div>
@@ -355,7 +407,11 @@ export default function HomePage() {
                           showConfirm(
                             "Disable MFA?",
                             "Caution: This will significantly degrade your business security rating and expose your institutional vault. Are you sure?",
-                            () => setTwoFactorEnabled(false),
+                            async () => {
+                              setTwoFactorEnabled(false)
+                              await handleSecurityUpdate('mfa_enabled', false)
+                              showToast('🔓 MFA Security Protocol deactivated.', 'warning')
+                            },
                             "Disable Protocol",
                             "Maintain Security"
                           )
@@ -1133,6 +1189,7 @@ export default function HomePage() {
                     if (code && code.length === 6) {
                       setTwoFactorEnabled(true)
                       setShow2FAModal(false)
+                      handleSecurityUpdate('mfa_enabled', true)
                       showToast('✅ Two-Factor Authentication [MFA] enabled. Your vault is now secure.', 'success')
                     } else {
                       showAlert('MFA Verification Failure', 'Please enter the valid 6-digit code from your authenticator protocol.')
