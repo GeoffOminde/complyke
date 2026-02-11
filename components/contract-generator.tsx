@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -28,7 +28,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { useInstitutionalUI } from "@/contexts/ui-context"
 
 export default function ContractGenerator() {
-    const { user } = useAuth()
+    const { user, profile } = useAuth()
     const { showToast, showAlert } = useInstitutionalUI()
     const [formData, setFormData] = useState({
         companyName: profile?.business_name || "",
@@ -48,6 +48,12 @@ export default function ContractGenerator() {
     const [isUploading, setIsUploading] = useState(false)
     const [uploadSuccess, setUploadSuccess] = useState(false)
     const [isDownloadingPDF, setIsDownloadingPDF] = useState(false)
+
+    useEffect(() => {
+        if (profile?.business_name && !formData.companyName) {
+            setFormData(prev => ({ ...prev, companyName: profile.business_name }))
+        }
+    }, [profile])
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target
