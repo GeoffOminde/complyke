@@ -1118,7 +1118,7 @@ export default function HomePage() {
                     {/* Real Scannable QR Code */}
                     <div className="p-4 bg-white rounded-lg">
                       <QRCodeSVG
-                        value={`otpauth://totp/ComplyKe:${user?.email || "user@complyke.dev"}?secret=JBSWY3DPEHPK3PXP&issuer=ComplyKe`}
+                        value={`otpauth://totp/ComplyKe:${user?.email ?? "User"}?secret=JBSWY3DPEHPK3PXP&issuer=ComplyKe`}
                         size={192}
                         level="H"
                         includeMargin={true}
