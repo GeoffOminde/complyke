@@ -6,6 +6,9 @@ export interface CompanyDetails {
     companyName: string;
     collectsPhoneNumbers: boolean;
     hasCCTV: boolean;
+    email?: string;
+    phone?: string;
+    address?: string;
 }
 
 /**
@@ -52,9 +55,9 @@ ${companyName} ("we", "us", "our") is committed to protecting the privacy and pe
 ${companyName} is the data controller responsible for your personal data.
 
 For any data protection queries, please contact:
-- Email: [privacy@${companyName.toLowerCase().replace(/\s+/g, '')}.co.ke]
-- Phone: [Contact Number]
-- Address: [Physical Address]
+- Email: ${details.email || '[Email Address]'}
+- Phone: ${details.phone || '[Contact Number]'}
+- Address: ${details.address || '[Physical Address]'}
 
 ---
 
@@ -125,7 +128,7 @@ Under the Data Protection Act, 2019, you have the right to:
 - **Object** to processing
 - **Withdraw Consent** at any time
 
-To exercise these rights, contact us at [privacy@${companyName.toLowerCase().replace(/\s+/g, '')}.co.ke]
+To exercise these rights, contact us at ${details.email || '[Email Address]'}
 
 ---
 

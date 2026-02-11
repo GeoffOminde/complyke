@@ -20,7 +20,8 @@ import {
   DollarSign,
   MessageCircle,
   ChevronDown,
-  LogOut
+  LogOut,
+  BadgeCheck
 } from "lucide-react"
 import { QRCodeSVG } from "qrcode.react"
 import RiskDashboard from "@/components/risk-dashboard"
@@ -36,7 +37,7 @@ import { useInstitutionalUI } from "@/contexts/ui-context"
 type Page = "dashboard" | "contracts" | "payroll" | "privacy" | "receipts" | "pricing" | "settings"
 
 export default function HomePage() {
-  const { user, profile, loading, signOut } = useAuth()
+  const { user, profile, loading, signOut, refreshProfile } = useAuth()
   const { showToast, showAlert, showConfirm, showPrompt } = useInstitutionalUI()
   const [view, setView] = useState<"landing" | "login">("landing")
   const [currentPage, setCurrentPage] = useState<Page>("dashboard")
@@ -127,6 +128,7 @@ export default function HomePage() {
         .eq('id', user.id)
 
       if (error) throw error
+      await refreshProfile()
       setShowProfileModal(false)
       showToast('✅ Institutional profile updated in cloud vault')
     } catch (error: any) {
@@ -162,96 +164,65 @@ export default function HomePage() {
   }, [])
 
   // Notifications data
-  const [allNotifications, setAllNotifications] = useState([
-    {
-      id: 1,
-      title: "Housing Levy Due",
-      message: "December 2024 Housing Levy payment is due in 3 days. Penalty: 3% per month.",
-      detail: "Your Housing Levy payment for December 2024 is due on December 24, 2024. Total amount due: KES 4,500 (Employee: KES 2,250 + Employer: KES 2,250). Late payment penalty is 3% per month. Pay via KRA iTax portal or M-Pesa Paybill 572572.",
-      time: "2 hours ago",
-      type: "critical" as const,
-      read: false,
-      action: () => setCurrentPage('payroll')
-    },
-    {
-      id: 2,
-      title: "Casual Worker Alert",
-      message: "Employee 'John Kamau' approaching 90-day limit. Convert to permanent or terminate.",
-      detail: "Employee John Kamau (ID: 12345678) has been on casual contract for 87 days. According to Section 37 of the Employment Act 2007, casual workers employed for more than 90 days are automatically converted to permanent employees. You must either: 1) Convert to permanent contract before Day 90, or 2) Terminate employment. Failure to comply may result in Housing Levy arrears and legal penalties.",
-      time: "1 day ago",
-      type: "critical" as const,
-      read: false,
-      action: () => setCurrentPage('contracts')
-    },
-    {
-      id: 3,
-      title: "Compliance Score Updated",
-      message: "Your compliance health score is now 85%. Keep up the good work!",
-      detail: "Your compliance health score has improved from 75% to 85%. Completed items: SHA/SHIF Registration ✓, Housing Levy Payment ✓, Employee Contracts ✓. Pending: Data Protection Policy (required under Data Protection Act 2019, Section 63 - Fine up to KES 5M).",
-      time: "3 days ago",
-      type: "success" as const,
-      read: true,
-      action: () => setCurrentPage('dashboard')
-    },
-    {
-      id: 4,
-      title: "SHIF Payment Confirmation",
-      message: "SHIF payment of KES 8,250 successfully processed for November 2024.",
-      detail: "Your SHIF (Social Health Insurance Fund) payment has been confirmed. Amount: KES 8,250 (2.75% of total payroll). Receipt Number: SHIF/2024/NOV/123456. Coverage period: November 2024. All employees are now covered under SHA.",
-      time: "5 days ago",
-      type: "success" as const,
-      read: true,
-      action: () => setCurrentPage('payroll')
-    },
-    {
-      id: 5,
-      title: "New Tax Regulation Alert",
-      message: "Finance Act 2025 updates: PAYE bands adjusted. Review your payroll calculations.",
-      detail: "The Finance Act 2025 has introduced new PAYE tax bands effective January 2025. Key changes: Personal relief remains KES 2,400/month. New top rate of 35% for income above KES 800,000/month. Update your payroll calculations to ensure compliance.",
-      time: "1 week ago",
-      type: "warning" as const,
-      read: true,
-      action: () => setCurrentPage('payroll')
-    },
-    {
-      id: 6,
-      title: "eTIMS Receipt Rejected",
-      message: "Expense receipt from 'Mama Njeri Supplies' lacks eTIMS validation.",
-      detail: "Receipt for KES 15,000 from Mama Njeri Supplies was rejected. Only eTIMS-validated receipts are tax-deductible. This will increase your corporate tax liability by KES 4,500.",
-      time: "1 week ago",
-      type: "critical" as const,
-      read: true,
-      action: () => setCurrentPage('receipts')
-    },
-    {
-      id: 7,
-      title: "NSSF Phase 4 Update",
-      message: "NSSF contributions for February 2026 successfully calculated for 12 employees.",
-      detail: "Your NSSF contributions have been calculated at the new Phase 4 rates. Total: KES 12,960. You can now download the payroll summary for submission.",
-      time: "2 weeks ago",
-      type: "success" as const,
-      read: true,
-      action: () => setCurrentPage('payroll')
-    },
-    {
-      id: 8,
-      title: "Data Protection Policy Required",
-      message: "You collect customer phone numbers. ODPC requires a privacy policy.",
-      detail: "Your business collects personal data. Under the Data Protection Act 2019, you MUST have a published Privacy Policy. Use our Wizard to generate one.",
-      time: "2 weeks ago",
-      type: "warning" as const,
-      read: true,
-      action: () => setCurrentPage('privacy')
+  const [allNotifications, setAllNotifications] = useState<any[]>([])
+
+  const fetchNotifications = async () => {
+    if (!user) return
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      if (data) {
+        const mapped = data.map(n => ({
+          id: n.id,
+          title: n.type?.toUpperCase().replace('_', ' ') || 'SYSTEM ALERT',
+          message: n.message,
+          detail: n.message,
+          time: new Date(n.created_at).toLocaleDateString('en-KE', {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          }),
+          type: (n.type === 'critical' || n.type === 'warning' || n.type === 'success') ? n.type : 'warning',
+          read: n.is_read || false,
+          action: () => setCurrentPage('dashboard')
+        }))
+        setAllNotifications(mapped)
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch institutional alerts:', err.message)
     }
-  ])
-
-  const markAsRead = (id: number) => {
-    setAllNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
   }
 
-  const markAllRead = () => {
-    setAllNotifications(prev => prev.map(n => ({ ...n, read: true })))
+  useEffect(() => {
+    fetchNotifications()
+  }, [user])
+
+  const markAsRead = async (id: any) => {
+    try {
+      await supabase.from('notifications').update({ is_read: true }).eq('id', id)
+      setAllNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
+    } catch (err) {
+      console.error('Failed to update alert state:', err)
+    }
   }
+
+  const markAllRead = async () => {
+    if (!user) return
+    try {
+      await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id)
+      setAllNotifications(prev => prev.map(n => ({ ...n, read: true })))
+    } catch (err) {
+      console.error('Failed to clear alert history:', err)
+    }
+  }
+
 
   const visibleNotifications = showAllNotifications ? allNotifications : allNotifications.slice(0, 3)
 
@@ -523,7 +494,7 @@ export default function HomePage() {
                     <p className="text-xs text-navy-400 font-medium">System identified {allNotifications.filter(n => n.type === 'critical').length} high-liability items</p>
                   </div>
                   <div className="max-h-[400px] overflow-y-auto">
-                    {visibleNotifications.map((notification) => (
+                    {visibleNotifications.length > 0 ? visibleNotifications.map((notification) => (
                       <div
                         key={notification.id}
                         onClick={() => {
@@ -541,7 +512,15 @@ export default function HomePage() {
                           </div>
                         </div>
                       </div>
-                    ))}
+                    )) : (
+                      <div className="p-10 text-center">
+                        <div className="h-12 w-12 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-4 border border-emerald-100">
+                          <BadgeCheck className="h-6 w-6 text-emerald-500" />
+                        </div>
+                        <p className="text-xs font-bold text-navy-950 uppercase tracking-widest">Protocol Clear</p>
+                        <p className="text-[10px] text-navy-400 mt-1">No critical compliance alerts detected.</p>
+                      </div>
+                    )}
                   </div>
                   <div className="p-4 bg-navy-50">
                     <button
@@ -568,7 +547,7 @@ export default function HomePage() {
                       </button>
                     </div>
                     <div className="overflow-y-auto p-2 space-y-2 flex-1 custom-scrollbar">
-                      {allNotifications.map((notification) => (
+                      {allNotifications.length > 0 ? allNotifications.map((notification) => (
                         <div key={notification.id} className="p-4 rounded-2xl border border-navy-50 hover:bg-navy-50 transition-colors group">
                           <div className="flex items-start gap-3">
                             <div className={`mt-1 h-2 w-2 rounded-full shrink-0 ${notification.type === 'critical' ? 'bg-rose-500 shadow-rose-200' : 'bg-emerald-500'}`} />
@@ -579,7 +558,13 @@ export default function HomePage() {
                             </div>
                           </div>
                         </div>
-                      ))}
+                      )) : (
+                        <div className="flex flex-col items-center justify-center p-20 opacity-60">
+                          <Shield className="h-20 w-20 text-navy-100 mb-6" />
+                          <p className="font-black text-navy-900 uppercase tracking-widest text-sm text-center">Protocol Synchronized</p>
+                          <p className="text-xs text-navy-400 mt-2 text-center max-w-[200px]">No historical alerts found in your institutional vault.</p>
+                        </div>
+                      )}
                     </div>
                     <div className="p-4 border-t border-navy-50 bg-navy-50/30">
                       <button onClick={markAllRead} className="w-full py-4 rounded-2xl bg-navy-900 text-white text-xs font-black uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-navy-100">
@@ -740,75 +725,67 @@ export default function HomePage() {
       <WhatsAppButton />
 
       {/* Notification Detail Modal */}
-      {
-        selectedNotification !== null && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 animate-fade-in">
-            <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              {(() => {
-                const notification = allNotifications.find(n => n.id === selectedNotification)
-                if (!notification) return null
+      {selectedNotification !== null && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-navy-950/40 backdrop-blur-sm animate-fade-in" onClick={() => setSelectedNotification(null)} />
+          <div className="relative bg-white rounded-[40px] shadow-2xl w-full max-w-lg overflow-hidden animate-slide-in-up">
+            {(() => {
+              const notification = allNotifications.find(n => n.id === selectedNotification)
+              if (!notification) return null
 
-                return (
-                  <>
-                    <div className="p-6 border-b border-navy-200">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3 flex-1">
-                          <div className={`flex-shrink-0 w-3 h-3 rounded-full mt-1 ${notification.type === 'critical' ? 'bg-rose-600' :
-                            notification.type === 'warning' ? 'bg-orange-500' :
-                              'bg-emerald-600'
-                            }`}></div>
-                          <div className="flex-1">
-                            <h2 className="text-xl font-bold text-navy-900">{notification.title}</h2>
-                            <p className="text-sm text-navy-600 mt-1">{notification.time}</p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => setSelectedNotification(null)}
-                          className="flex-shrink-0 rounded-lg p-2 hover:bg-navy-100 transition-colors"
-                        >
-                          <X className="h-5 w-5 text-navy-700" />
-                        </button>
+              return (
+                <>
+                  <div className="bg-navy-950 p-10 text-white relative">
+                    <div className="absolute top-0 right-0 p-10 opacity-10">
+                      <Bell className="h-24 w-24" />
+                    </div>
+                    <div className="relative z-10 flex items-center gap-4 mb-4">
+                      <div className={`h-10 w-10 rounded-xl flex items-center justify-center border border-white/10 ${notification.type === 'critical' ? 'bg-rose-500/20' : 'bg-emerald-500/20'}`}>
+                        <Shield className={`h-5 w-5 ${notification.type === 'critical' ? 'text-rose-400' : 'text-emerald-400'}`} />
                       </div>
+                      <span className="text-[10px] font-black uppercase tracking-[0.3em] text-navy-300">Compliance Event</span>
+                    </div>
+                    <h2 className="text-3xl font-black tracking-tight leading-tight">{notification.title}</h2>
+                    <p className="text-xs font-bold text-navy-400 uppercase tracking-widest mt-2">Captured: {notification.time}</p>
+                  </div>
+
+                  <div className="p-10 space-y-6">
+                    <div className={`p-6 rounded-[24px] ${notification.type === 'critical' ? 'bg-rose-50 border border-rose-100' : 'bg-emerald-50 border border-emerald-100'}`}>
+                      <p className="text-navy-900 font-bold leading-relaxed">{notification.message}</p>
                     </div>
 
-                    <div className="p-6">
-                      <div className={`p-4 rounded-lg mb-4 ${notification.type === 'critical' ? 'bg-rose-50 border border-rose-200' :
-                        notification.type === 'warning' ? 'bg-orange-50 border border-orange-200' :
-                          'bg-emerald-50 border border-emerald-200'
-                        }`}>
-                        <p className="text-sm font-medium text-navy-900">{notification.message}</p>
-                      </div>
-
-                      <div className="prose prose-sm max-w-none">
-                        <p className="text-navy-700 leading-relaxed whitespace-pre-line">{notification.detail}</p>
-                      </div>
+                    <div className="prose prose-sm max-w-none">
+                      <p className="text-navy-600 font-medium leading-loose whitespace-pre-line bg-navy-50/50 p-6 rounded-[24px] border border-navy-50">
+                        {notification.detail}
+                      </p>
                     </div>
+                  </div>
 
-                    <div className="p-6 border-t border-navy-200 bg-navy-50 flex gap-3">
-                      <button
-                        onClick={() => {
-                          notification.action()
-                          setSelectedNotification(null)
-                          setNotificationsOpen(false)
-                        }}
-                        className="flex-1 bg-navy-900 text-white px-6 py-3 rounded-lg font-semibold hover:bg-navy-800 transition-colors"
-                      >
-                        Take Action
-                      </button>
-                      <button
-                        onClick={() => setSelectedNotification(null)}
-                        className="px-6 py-3 rounded-lg font-semibold text-navy-700 hover:bg-navy-100 transition-colors"
-                      >
-                        Close
-                      </button>
-                    </div>
-                  </>
-                )
-              })()}
-            </div>
+                  <div className="px-10 pb-10 flex gap-4">
+                    <button
+                      onClick={() => setSelectedNotification(null)}
+                      className="flex-1 h-14 rounded-2xl border border-navy-100 text-navy-600 font-bold hover:bg-navy-50 transition-all uppercase tracking-widest text-[10px]"
+                    >
+                      Acknowledge
+                    </button>
+                    <button
+                      onClick={() => {
+                        notification.action()
+                        setSelectedNotification(null)
+                        setNotificationsOpen(false)
+                      }}
+                      className="flex-[1.5] h-14 rounded-2xl bg-navy-900 text-white font-black uppercase tracking-widest text-xs hover:bg-navy-800 transition-all shadow-xl shadow-navy-100 flex items-center justify-center gap-2 group"
+                    >
+                      Resolve Protocol
+                      <ChevronDown className="h-4 w-4 -rotate-90 transition-transform group-hover:translate-x-1" />
+                    </button>
+                  </div>
+                </>
+              )
+            })()}
           </div>
-        )
-      }
+        </div>
+      )}
 
       {/* My Profile Modal */}
       {
@@ -843,6 +820,8 @@ export default function HomePage() {
                     <div>
                       <label className="block text-sm font-medium text-navy-700 mb-2">Business Name</label>
                       <input
+                        id="biz-name"
+                        name="business_name"
                         type="text"
                         value={profileForm.business_name}
                         onChange={(e) => setProfileForm({ ...profileForm, business_name: e.target.value })}

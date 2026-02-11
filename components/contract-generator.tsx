@@ -17,7 +17,8 @@ import {
     Calendar,
     Briefcase,
     Banknote,
-    Upload
+    Upload,
+    Building2
 } from "lucide-react"
 import { generateEmploymentContract } from "@/lib/contract-generator"
 import { isAboveMinimumWage, formatKES } from "@/lib/tax-calculator"
@@ -30,6 +31,7 @@ export default function ContractGenerator() {
     const { user } = useAuth()
     const { showToast, showAlert } = useInstitutionalUI()
     const [formData, setFormData] = useState({
+        companyName: profile?.business_name || "",
         employeeName: "",
         idNumber: "",
         jobTitle: "",
@@ -37,6 +39,7 @@ export default function ContractGenerator() {
         startDate: "",
     })
 
+    const [companyLogo, setCompanyLogo] = useState<string | null>(null)
     const [generatedContract, setGeneratedContract] = useState("")
     const [showWarning, setShowWarning] = useState(false)
     const [isGenerating, setIsGenerating] = useState(false)
@@ -44,6 +47,7 @@ export default function ContractGenerator() {
     const [currentContractId, setCurrentContractId] = useState<string | null>(null)
     const [isUploading, setIsUploading] = useState(false)
     const [uploadSuccess, setUploadSuccess] = useState(false)
+    const [isDownloadingPDF, setIsDownloadingPDF] = useState(false)
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target
@@ -60,7 +64,8 @@ export default function ContractGenerator() {
     const handleGenerate = async () => {
         const salary = parseFloat(formData.grossSalary)
 
-        if (!formData.employeeName || !formData.idNumber || !formData.jobTitle || isNaN(salary) || !formData.startDate) {
+        if (!formData.companyName || !formData.employeeName || !formData.idNumber || !formData.jobTitle || isNaN(salary) || !formData.startDate) {
+            showAlert('Protocol Error', 'Please complete all institutional parameters including Company Name.')
             return
         }
 
@@ -73,6 +78,7 @@ export default function ContractGenerator() {
             jobTitle: formData.jobTitle,
             grossSalary: salary,
             startDate: formData.startDate,
+            employerName: formData.companyName,
         })
 
         setGeneratedContract(contract)
@@ -111,8 +117,38 @@ export default function ContractGenerator() {
         try {
             const filename = `Employment_Contract_${formData.employeeName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`
             await downloadAsWord(generatedContract, filename)
+            showToast('✅ Instrument exported to DOCX format')
         } catch (error: any) {
             console.error("Download error:", error)
+        }
+    }
+
+    const handleDownloadPDF = async () => {
+        if (!generatedContract) return
+        setIsDownloadingPDF(true)
+
+        try {
+            const { downloadAsPDF } = await import('@/lib/download-helpers')
+            const filename = `Employment_Contract_${formData.employeeName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`
+            await downloadAsPDF(generatedContract, filename)
+            showToast('✅ Instrument exported to PDF format')
+        } catch (error: any) {
+            console.error("PDF Download error:", error)
+            showAlert('Export Error', 'Failed to render PDF instrument.')
+        } finally {
+            setIsDownloadingPDF(false)
+        }
+    }
+
+    const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (file) {
+            const reader = new FileReader()
+            reader.onloadend = () => {
+                setCompanyLogo(reader.result as string)
+                showToast('🏢 Company logo successfully loaded')
+            }
+            reader.readAsDataURL(file)
         }
     }
 
@@ -153,6 +189,7 @@ export default function ContractGenerator() {
 
     const handleReset = () => {
         setFormData({
+            companyName: profile?.business_name || "",
             employeeName: "",
             idNumber: "",
             jobTitle: "",
@@ -161,6 +198,7 @@ export default function ContractGenerator() {
         })
         setGeneratedContract("")
         setShowWarning(false)
+        setCompanyLogo(null)
     }
 
     return (
@@ -195,11 +233,58 @@ export default function ContractGenerator() {
                             <div className="space-y-5">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black text-navy-400 uppercase tracking-widest flex items-center gap-2">
+                                        <Building2 className="h-3 w-3" /> Employer / Entity Name
+                                    </label>
+                                    <Input
+                                        name="companyName"
+                                        placeholder="e.g., ACME STRATEGIC SOLUTIONS LTD"
+                                        value={formData.companyName}
+                                        onChange={handleInputChange}
+                                        className="h-12 bg-navy-50/50 border-navy-100 focus:bg-white transition-all uppercase font-black text-sm"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-navy-400 uppercase tracking-widest flex items-center gap-2">
+                                        <Upload className="h-3 w-3" /> Company Logo (Optional)
+                                    </label>
+                                    <div className="flex items-center gap-4">
+                                        {companyLogo ? (
+                                            <div className="h-12 w-12 rounded-xl border border-navy-100 bg-white overflow-hidden relative group">
+                                                <img src={companyLogo} alt="Logo" className="w-full h-full object-contain" />
+                                                <button
+                                                    onClick={() => setCompanyLogo(null)}
+                                                    className="absolute inset-0 bg-rose-600/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-bold"
+                                                >
+                                                    Remove
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div
+                                                onClick={() => document.getElementById('logo-upload')?.click()}
+                                                className="h-12 w-12 rounded-xl border-2 border-dashed border-navy-100 hover:border-navy-400 transition-colors flex items-center justify-center cursor-pointer bg-white"
+                                            >
+                                                <Upload className="h-4 w-4 text-navy-400" />
+                                            </div>
+                                        )}
+                                        <input
+                                            id="logo-upload"
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={handleLogoUpload}
+                                        />
+                                        <p className="text-[10px] text-navy-400 font-medium">PNG or SVG for document header.</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-navy-400 uppercase tracking-widest flex items-center gap-2">
                                         <UserPlus className="h-3 w-3" /> Employee Full Name
                                     </label>
                                     <Input
                                         name="employeeName"
-                                        placeholder="e.g., Jane Wanjiku Kamau"
+                                        placeholder="e.g., JANE WANJIKU KAMAU"
                                         value={formData.employeeName}
                                         onChange={handleInputChange}
                                         className="h-12 bg-navy-50/50 border-navy-100 focus:bg-white transition-all uppercase font-bold text-sm"
@@ -348,13 +433,24 @@ export default function ContractGenerator() {
                                     Official Draft
                                 </div>
                                 <CardHeader className="border-b border-navy-50 px-10 py-8 flex flex-row items-center justify-between">
-                                    <div>
-                                        <CardTitle className="text-navy-900 font-serif italic text-2xl uppercase">Employment Contract</CardTitle>
-                                        <CardDescription className="uppercase tracking-[0.2em] text-[10px] font-black text-emerald-600 mt-1">Legally Validated Instrument</CardDescription>
+                                    <div className="flex flex-col items-center gap-4">
+                                        {companyLogo && (
+                                            <img src={companyLogo} alt="Company Logo" className="h-16 w-auto mb-4" />
+                                        )}
+                                        <div className="text-center">
+                                            <CardTitle className="text-navy-900 font-serif italic text-2xl uppercase tracking-tighter">Employment Contract</CardTitle>
+                                            <CardDescription className="uppercase tracking-[0.2em] text-[10px] font-black text-emerald-600 mt-1">Legally Validated Instrument</CardDescription>
+                                        </div>
                                     </div>
-                                    <Button onClick={handleDownload} className="rounded-xl bg-navy-900 hover:bg-navy-800 shadow-xl shadow-navy-200">
-                                        <Download className="mr-2 h-4 w-4" /> Download DOCX
-                                    </Button>
+                                    <div className="flex gap-2">
+                                        <Button onClick={handleDownload} variant="outline" className="rounded-xl border-navy-100 hover:bg-navy-50 shadow-sm">
+                                            <Download className="mr-2 h-4 w-4" /> DOCX
+                                        </Button>
+                                        <Button onClick={handleDownloadPDF} disabled={isDownloadingPDF} className="rounded-xl bg-navy-900 hover:bg-navy-800 shadow-xl shadow-navy-200">
+                                            {isDownloadingPDF ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                                            PDF
+                                        </Button>
+                                    </div>
                                 </CardHeader>
                                 <CardContent className="px-12 py-12">
                                     <div className="prose prose-sm max-w-none text-navy-800 leading-relaxed font-serif whitespace-pre-line text-sm border-l-2 border-navy-50 pl-8">

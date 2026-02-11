@@ -8,6 +8,7 @@ export interface EmployeeDetails {
     jobTitle: string;
     grossSalary: number;
     startDate: string;
+    employerName?: string;
 }
 
 /**
@@ -27,7 +28,7 @@ This Employment Contract is entered into on ${new Date(startDate).toLocaleDateSt
 
 **BETWEEN:**
 
-**[EMPLOYER NAME]** (hereinafter referred to as "the Employer")
+**${details.employerName || '[EMPLOYER NAME]'}** (hereinafter referred to as "the Employer")
 
 **AND:**
 

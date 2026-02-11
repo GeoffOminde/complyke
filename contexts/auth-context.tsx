@@ -12,6 +12,7 @@ interface AuthContextType {
     signUp: (email: string, password: string, businessName?: string) => Promise<void>
     signOut: () => Promise<void>
     signInWithGoogle: () => Promise<void>
+    refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -173,8 +174,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (error) throw error
     }
 
+    const refreshProfile = async () => {
+        if (user) await fetchProfile(user.id)
+    }
+
     return (
-        <AuthContext.Provider value={{ user, profile, loading, signIn, signUp, signOut, signInWithGoogle }}>
+        <AuthContext.Provider value={{ user, profile, loading, signIn, signUp, signOut, signInWithGoogle, refreshProfile }}>
             {children}
         </AuthContext.Provider>
     )

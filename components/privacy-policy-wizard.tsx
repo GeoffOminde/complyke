@@ -15,7 +15,8 @@ import {
     ScrollText,
     FileSignature,
     RefreshCw,
-    Lock
+    Lock,
+    Upload
 } from "lucide-react"
 import { generatePrivacyPolicy } from "@/lib/privacy-policy-generator"
 import { downloadAsWord } from "@/lib/download-helpers"
@@ -23,16 +24,21 @@ import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/auth-context"
 
 export default function PrivacyPolicyWizard() {
-    const { user } = useAuth()
+    const { user, profile } = useAuth()
     const [formData, setFormData] = useState({
-        companyName: "",
+        companyName: profile?.business_name || "",
+        email: user?.email || "",
+        phone: profile?.phone || "",
+        address: profile?.location || "",
         collectsPhoneNumbers: false,
         hasCCTV: false,
     })
 
+    const [companyLogo, setCompanyLogo] = useState<string | null>(null)
     const [generatedPolicy, setGeneratedPolicy] = useState("")
     const [isGenerating, setIsGenerating] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
+    const [isDownloadingPDF, setIsDownloadingPDF] = useState(false)
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value, type, checked } = e.target
@@ -52,6 +58,9 @@ export default function PrivacyPolicyWizard() {
             companyName: formData.companyName,
             collectsPhoneNumbers: formData.collectsPhoneNumbers,
             hasCCTV: formData.hasCCTV,
+            email: formData.email,
+            phone: formData.phone,
+            address: formData.address,
         })
 
         setGeneratedPolicy(policy)
@@ -92,13 +101,43 @@ export default function PrivacyPolicyWizard() {
         }
     }
 
+    const handleDownloadPDF = async () => {
+        if (!generatedPolicy) return
+        setIsDownloadingPDF(true)
+
+        try {
+            const { downloadAsPDF } = await import('@/lib/download-helpers')
+            const filename = `Privacy_Policy_${formData.companyName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`
+            await downloadAsPDF(generatedPolicy, filename)
+        } catch (error: any) {
+            console.error("PDF Download error:", error)
+        } finally {
+            setIsDownloadingPDF(false)
+        }
+    }
+
+    const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (file) {
+            const reader = new FileReader()
+            reader.onloadend = () => {
+                setCompanyLogo(reader.result as string)
+            }
+            reader.readAsDataURL(file)
+        }
+    }
+
     const handleReset = () => {
         setFormData({
-            companyName: "",
+            companyName: profile?.business_name || "",
+            email: user?.email || "",
+            phone: profile?.phone || "",
+            address: profile?.location || "",
             collectsPhoneNumbers: false,
             hasCCTV: false,
         })
         setGeneratedPolicy("")
+        setCompanyLogo(null)
     }
 
     return (
@@ -141,6 +180,66 @@ export default function PrivacyPolicyWizard() {
                                         value={formData.companyName}
                                         onChange={handleInputChange}
                                         className="h-14 bg-navy-50/50 border-navy-100 focus:bg-white transition-all uppercase font-bold text-sm tracking-tight"
+                                    />
+                                </div>
+
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-black text-navy-400 uppercase tracking-widest flex items-center gap-2">
+                                        <Upload className="h-3 w-3" /> Entity Logo (Optional)
+                                    </label>
+                                    <div className="flex items-center gap-4">
+                                        {companyLogo ? (
+                                            <div className="h-14 w-14 rounded-2xl border border-navy-100 bg-white overflow-hidden relative group">
+                                                <img src={companyLogo} alt="Logo" className="w-full h-full object-contain" />
+                                                <button onClick={() => setCompanyLogo(null)} className="absolute inset-0 bg-rose-600/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-bold">Remove</button>
+                                            </div>
+                                        ) : (
+                                            <div onClick={() => document.getElementById('logo-upload-policy')?.click()} className="h-14 w-14 rounded-2xl border-2 border-dashed border-navy-100 hover:border-navy-400 transition-colors flex items-center justify-center cursor-pointer bg-white">
+                                                <Upload className="h-5 w-5 text-navy-400" />
+                                            </div>
+                                        )}
+                                        <input id="logo-upload-policy" type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                                        <p className="text-[10px] text-navy-400 font-medium">PNG or SVG for document header.</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-navy-400 uppercase tracking-widest flex items-center gap-2">
+                                            Contact Email
+                                        </label>
+                                        <Input
+                                            name="email"
+                                            placeholder="privacy@company.co.ke"
+                                            value={formData.email}
+                                            onChange={handleInputChange}
+                                            className="h-12 bg-navy-50/50 border-navy-100 focus:bg-white transition-all text-sm"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-navy-400 uppercase tracking-widest flex items-center gap-2">
+                                            Contact Phone
+                                        </label>
+                                        <Input
+                                            name="phone"
+                                            placeholder="+254..."
+                                            value={formData.phone}
+                                            onChange={handleInputChange}
+                                            className="h-12 bg-navy-50/50 border-navy-100 focus:bg-white transition-all text-sm"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-navy-400 uppercase tracking-widest flex items-center gap-2">
+                                        Physical Address
+                                    </label>
+                                    <Input
+                                        name="address"
+                                        placeholder="e.g., Westlands, Nairobi"
+                                        value={formData.address}
+                                        onChange={handleInputChange}
+                                        className="h-12 bg-navy-50/50 border-navy-100 focus:bg-white transition-all text-sm"
                                     />
                                 </div>
 
@@ -258,16 +357,27 @@ export default function PrivacyPolicyWizard() {
                                     <Shield className="h-64 w-64 text-navy-900" />
                                 </div>
                                 <CardHeader className="border-b border-navy-50 px-12 py-10 flex flex-row items-center justify-between">
-                                    <div>
-                                        <CardTitle className="text-navy-950 font-serif italic text-3xl">Privacy & Data Governance</CardTitle>
-                                        <div className="flex items-center gap-2 mt-2">
-                                            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                            <CardDescription className="uppercase tracking-[0.2em] text-[10px] font-black text-navy-400">Section 26 DPA Certified Instrument</CardDescription>
+                                    <div className="flex flex-col items-center gap-4">
+                                        {companyLogo && (
+                                            <img src={companyLogo} alt="Company Logo" className="h-16 w-auto mb-4" />
+                                        )}
+                                        <div className="text-center">
+                                            <CardTitle className="text-navy-950 font-serif italic text-3xl">Privacy & Data Governance</CardTitle>
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                <CardDescription className="uppercase tracking-[0.2em] text-[10px] font-black text-navy-400">Section 26 DPA Certified Instrument</CardDescription>
+                                            </div>
                                         </div>
                                     </div>
-                                    <Button onClick={handleDownload} className="rounded-2xl h-14 px-8 bg-navy-950 hover:bg-black shadow-2xl shadow-navy-300 transition-all">
-                                        <Download className="mr-2 h-5 w-5" /> Export Instrument
-                                    </Button>
+                                    <div className="flex gap-2">
+                                        <Button onClick={handleDownload} variant="outline" className="rounded-2xl h-14 border-navy-100 hover:bg-navy-50">
+                                            <Download className="mr-2 h-5 w-5" /> DOCX
+                                        </Button>
+                                        <Button onClick={handleDownloadPDF} disabled={isDownloadingPDF} className="rounded-2xl h-14 px-8 bg-navy-950 hover:bg-black shadow-2xl shadow-navy-300 transition-all">
+                                            {isDownloadingPDF ? <RefreshCw className="h-5 w-5 animate-spin mr-2" /> : <Download className="mr-2 h-5 w-5 mr-2" />}
+                                            PDF
+                                        </Button>
+                                    </div>
                                 </CardHeader>
                                 <CardContent className="px-16 py-16">
                                     <div className="prose prose-sm max-w-none text-navy-900 leading-loose font-serif whitespace-pre-line text-base max-h-[600px] overflow-y-auto custom-scrollbar pr-8">
