@@ -27,6 +27,8 @@ interface UIContextType {
     showAlert: (title: string, message: string, confirmText?: string) => void
     showConfirm: (title: string, message: string, onConfirm: () => void, confirmText?: string, cancelText?: string) => void
     showPrompt: (title: string, message: string, onConfirm: (input?: string) => void, placeholder?: string, confirmText?: string) => void
+    unlockedFeatures: string[]
+    unlockFeature: (feature: string) => void
 }
 
 const UIContext = createContext<UIContextType | undefined>(undefined)
@@ -39,6 +41,11 @@ export function InstitutionalUIProvider({ children }: { children: ReactNode }) {
         type: 'alert'
     })
     const [toasts, setToasts] = useState<ToastState[]>([])
+    const [unlockedFeatures, setUnlockedFeatures] = useState<string[]>([])
+
+    const unlockFeature = useCallback((feature: string) => {
+        setUnlockedFeatures(prev => [...prev, feature])
+    }, [])
 
     const showToast = useCallback((message: string, type: ToastState['type'] = 'success') => {
         const id = Math.random().toString(36).substr(2, 9)
@@ -95,7 +102,7 @@ export function InstitutionalUIProvider({ children }: { children: ReactNode }) {
     }, [])
 
     return (
-        <UIContext.Provider value={{ showToast, showAlert, showConfirm, showPrompt }}>
+        <UIContext.Provider value={{ showToast, showAlert, showConfirm, showPrompt, unlockedFeatures, unlockFeature }}>
             {children}
             {toasts.map(toast => (
                 <Toast

@@ -44,30 +44,27 @@ export default function WakiliChat() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    messages: [...messages, userMessage].map(m => ({
-                        role: m.role,
-                        content: m.content
-                    }))
+                    messages: [...messages, { role: 'user', content: input }]
                 })
             })
 
             const data = await response.json()
 
-            if (data.error) {
-                throw new Error(data.error)
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to connect to Wakili AI')
             }
 
-            const assistantMessage: Message = {
+            setMessages(prev => [...prev, {
                 role: 'assistant',
                 content: data.message
-            }
-
-            setMessages(prev => [...prev, assistantMessage])
+            }])
         } catch (error: any) {
             console.error('Chat error:', error)
             setMessages(prev => [...prev, {
                 role: 'assistant',
-                content: `Error: ${error.message}. Please verify your network or OpenAI configuration.`
+                content: error.message.includes('Unauthorized')
+                    ? "Institutional Session Expired. Please refresh your vault to continue using Wakili AI."
+                    : `Communication Error: ${error.message}. Please check your connection.`
             }])
         } finally {
             setIsLoading(false)

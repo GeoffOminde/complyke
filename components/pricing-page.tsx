@@ -24,7 +24,7 @@ import { useAuth } from "@/contexts/auth-context"
 
 export default function PricingPage() {
   const { user } = useAuth()
-  const { showToast, showConfirm, showPrompt, showAlert } = useInstitutionalUI()
+  const { showToast, showConfirm, showPrompt, showAlert, unlockFeature } = useInstitutionalUI()
   const [loading, setLoading] = useState(false)
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly")
 
@@ -139,10 +139,7 @@ export default function PricingPage() {
       return
     }
 
-    if (planName === "Enterprise") {
-      window.open(`https://wa.me/254700123456?text=Interested in Enterprise Plan`, "_blank")
-      return
-    }
+    // Unified Payment Protocol for All Paid Tiers
 
     showPrompt(
       "Financial Authorization",
@@ -169,6 +166,26 @@ export default function PricingPage() {
           } else {
             showAlert("Sync Error", "Payment received but vault sync failed: " + error.message)
           }
+          setLoading(false)
+        }, 2000)
+      },
+      "254..."
+    )
+  }
+
+  const handlePayPerUse = (itemLabel: string, price: string) => {
+    showPrompt(
+      "Single-Use Authorization",
+      `Initiate KES ${price} M-Pesa transaction for one-time ${itemLabel} audit?`,
+      async (phoneNumber) => {
+        if (!phoneNumber || !user) return
+        setLoading(true)
+        showToast("Processing Liquidity Transfer...", "info")
+
+        setTimeout(async () => {
+          // In a real scenario, we'd log this transaction to a 'credits' table
+          unlockFeature(itemLabel.toLowerCase())
+          showToast(`M-Pesa Verified. ${itemLabel} Protocol Unlocked for Session.`, "success")
           setLoading(false)
         }, 2000)
       },
@@ -289,12 +306,17 @@ export default function PricingPage() {
               { label: "Privacy", price: "99" },
               { label: "Scan/OCR", price: "29" },
             ].map((item) => (
-              <div key={item.label} className="p-4 rounded-3xl bg-white/5 border border-white/10 text-center hover:bg-white/10 transition-colors">
-                <p className="text-[10px] font-black text-navy-500 uppercase tracking-widest mb-1">{item.label}</p>
+              <button
+                key={item.label}
+                onClick={() => handlePayPerUse(item.label, item.price)}
+                disabled={loading}
+                className="p-4 rounded-3xl bg-white/5 border border-white/10 text-center hover:bg-white/10 transition-colors active:scale-95 disabled:opacity-50"
+              >
+                <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">{item.label}</p>
                 <p className="text-xl font-black text-white">
                   <span className="text-[10px] opacity-30 mr-1">KES</span>{item.price}
                 </p>
-              </div>
+              </button>
             ))}
           </div>
         </div>

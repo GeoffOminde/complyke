@@ -15,7 +15,7 @@ import { useInstitutionalUI } from "@/contexts/ui-context"
 
 export default function PayrollCalculator() {
     const { user, profile } = useAuth()
-    const { showAlert } = useInstitutionalUI()
+    const { showAlert, unlockedFeatures } = useInstitutionalUI()
     const [grossSalary, setGrossSalary] = useState("")
     const [location, setLocation] = useState("other")
     const [breakdown, setBreakdown] = useState<ReturnType<typeof calculatePayroll> | null>(null)
@@ -129,15 +129,16 @@ export default function PayrollCalculator() {
                     <div className="mt-8 flex flex-col sm:flex-row gap-3">
                         <Button
                             onClick={() => {
-                                if (profile?.subscription_plan === 'free_trial' || !profile?.subscription_plan) {
-                                    showAlert("Institutional Tier Restriction", "Your current evaluation protocol is limited to document synthesis. Please upgrade to a Professional tier to unlock the Deterministic Payroll Engine.")
+                                const isUnlocked = unlockedFeatures.includes('payroll')
+                                if (!isUnlocked && (profile?.subscription_plan === 'free_trial' || !profile?.subscription_plan)) {
+                                    showAlert("Institutional Tier Restriction", "Your current evaluation protocol is limited to document synthesis. Please upgrade to a Professional tier or use the 'Instant Liquidity Plan' to unlock the Deterministic Payroll Engine.")
                                     return
                                 }
                                 handleCalculate()
                             }}
                             className="flex-1 h-12 text-lg font-bold bg-navy-900 hover:bg-navy-950 transition-all shadow-lg shadow-navy-200 flex items-center justify-center gap-2"
                         >
-                            {(profile?.subscription_plan === 'free_trial' || !profile?.subscription_plan) && <Lock className="h-4 w-4" />}
+                            {!unlockedFeatures.includes('payroll') && (profile?.subscription_plan === 'free_trial' || !profile?.subscription_plan) && <Lock className="h-4 w-4" />}
                             Run Deterministic Engine
                         </Button>
                         {breakdown && (

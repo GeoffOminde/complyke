@@ -130,44 +130,82 @@ export default function ReceiptScanner() {
                             onDragLeave={handleDrag}
                             onDragOver={handleDrag}
                             onDrop={handleDrop}
-                            className={`relative group transition-all duration-500 rounded-[32px] border-2 border-dashed p-12 flex flex-col items-center justify-center text-center cursor-pointer ${dragActive
+                            className={`relative transition-all duration-500 rounded-[32px] border-2 border-dashed p-8 md:p-12 flex flex-col items-center justify-center text-center ${dragActive
                                 ? 'border-navy-900 bg-navy-50 scale-[0.99]'
-                                : 'border-navy-200 bg-white hover:border-navy-400 hover:bg-navy-50/50'
+                                : 'border-navy-200 bg-white hover:border-navy-300'
                                 }`}
-                            onClick={() => document.getElementById('receipt-upload')?.click()}
                         >
-                            <div className={`p-6 rounded-3xl mb-6 transition-all duration-500 ${dragActive ? 'bg-navy-900 text-white rotate-12' : 'bg-navy-50 text-navy-400'}`}>
+                            <div className={`p-4 rounded-3xl mb-4 transition-all duration-500 ${dragActive ? 'bg-navy-900 text-white rotate-12' : 'bg-navy-50 text-navy-600'}`}>
                                 {isScanning ? (
-                                    <Loader2 className="h-12 w-12 animate-spin" />
+                                    <Loader2 className="h-10 w-10 animate-spin" />
                                 ) : (
-                                    <Upload className="h-12 w-12 group-hover:scale-110 transition-transform" />
+                                    <Receipt className="h-10 w-10" />
                                 )}
                             </div>
 
-                            <div className="space-y-2">
+                            <div className="space-y-1 mb-8">
                                 <h3 className="text-lg font-black text-navy-950 uppercase tracking-tight">
                                     {isScanning ? 'Processing Statutory Data...' : 'Submit Institutional Receipt'}
                                 </h3>
                                 <p className="text-sm text-navy-500 font-medium max-w-xs mx-auto">
-                                    Drop file here or click to scan. Our model identifies KRA PINs and eTIMS signatures automatically.
+                                    Our model identifies KRA PINs and eTIMS signatures automatically.
                                 </p>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-md z-20">
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault()
+                                        document.getElementById('receipt-upload')?.click()
+                                    }}
+                                    className="flex items-center justify-center gap-3 px-6 py-4 rounded-2xl border-2 border-navy-100 bg-white text-navy-900 font-bold hover:bg-navy-50 hover:border-navy-200 transition-all group"
+                                    disabled={isScanning}
+                                >
+                                    <div className="bg-navy-100 p-2 rounded-lg group-hover:scale-110 transition-transform">
+                                        <Upload className="h-5 w-5 text-navy-600" />
+                                    </div>
+                                    <span>Upload File</span>
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault()
+                                        document.getElementById('receipt-camera')?.click()
+                                    }}
+                                    className="flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-navy-900 text-white font-bold hover:bg-navy-800 transition-all shadow-xl shadow-navy-200 group"
+                                    disabled={isScanning}
+                                >
+                                    <div className="bg-white/10 p-2 rounded-lg group-hover:scale-110 transition-transform">
+                                        <Camera className="h-5 w-5 text-emerald-400" />
+                                    </div>
+                                    <span>Scan with Camera</span>
+                                </button>
                             </div>
 
                             <input
                                 id="receipt-upload"
                                 name="receipt_binary"
                                 type="file"
+                                accept="image/*,.pdf"
+                                onChange={onFileChange}
+                                className="hidden"
+                                disabled={isScanning}
+                            />
+                            <input
+                                id="receipt-camera"
+                                name="receipt_camera"
+                                type="file"
                                 accept="image/*"
+                                capture="environment"
                                 onChange={onFileChange}
                                 className="hidden"
                                 disabled={isScanning}
                             />
 
                             {/* Decorative Corner Accents */}
-                            <div className="absolute top-4 left-4 h-4 w-4 border-t-2 border-l-2 border-navy-300 rounded-tl" />
-                            <div className="absolute top-4 right-4 h-4 w-4 border-t-2 border-r-2 border-navy-300 rounded-tr" />
-                            <div className="absolute bottom-4 left-4 h-4 w-4 border-b-2 border-l-2 border-navy-300 rounded-bl" />
-                            <div className="absolute bottom-4 right-4 h-4 w-4 border-b-2 border-r-2 border-navy-300 rounded-br" />
+                            <div className="absolute top-6 left-6 h-6 w-6 border-t-2 border-l-2 border-navy-200 rounded-tl" />
+                            <div className="absolute top-6 right-6 h-6 w-6 border-t-2 border-r-2 border-navy-200 rounded-tr" />
+                            <div className="absolute bottom-6 left-6 h-6 w-6 border-b-2 border-l-2 border-navy-200 rounded-bl" />
+                            <div className="absolute bottom-6 right-6 h-6 w-6 border-b-2 border-r-2 border-navy-200 rounded-br" />
                         </div>
 
                         {/* Legal Note */}
