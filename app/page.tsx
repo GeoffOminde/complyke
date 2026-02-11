@@ -545,11 +545,47 @@ export default function HomePage() {
                   </div>
                   <div className="p-4 bg-navy-50">
                     <button
-                      onClick={() => setShowAllNotifications(!showAllNotifications)}
+                      onClick={() => setShowAllNotifications(true)}
                       className="text-xs font-black text-navy-900 uppercase tracking-widest block w-full text-center hover:text-navy-600 transition-colors"
                     >
-                      {showAllNotifications ? `Hide History` : `Global Alert History (${allNotifications.length})`}
+                      View Global Alert History ({allNotifications.length})
                     </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Mobile-First Full Screen Notification Overlay */}
+              {showAllNotifications && (
+                <div className="fixed inset-0 z-[100] bg-navy-950/95 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+                  <div className="bg-white w-full max-w-lg rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+                    <div className="p-6 border-b border-navy-50 flex items-center justify-between bg-navy-50/50">
+                      <div>
+                        <h3 className="text-lg font-black text-navy-900 uppercase tracking-tight">Global Alert History</h3>
+                        <p className="text-xs text-navy-500 font-medium mt-1">Found {allNotifications.length} statutory events</p>
+                      </div>
+                      <button onClick={() => setShowAllNotifications(false)} className="p-2 rounded-xl bg-white border border-navy-100 hover:bg-navy-50 transition-all">
+                        <X className="h-5 w-5 text-navy-900" />
+                      </button>
+                    </div>
+                    <div className="overflow-y-auto p-2 space-y-2 flex-1 custom-scrollbar">
+                      {allNotifications.map((notification) => (
+                        <div key={notification.id} className="p-4 rounded-2xl border border-navy-50 hover:bg-navy-50 transition-colors group">
+                          <div className="flex items-start gap-3">
+                            <div className={`mt-1 h-2 w-2 rounded-full shrink-0 ${notification.type === 'critical' ? 'bg-rose-500 shadow-rose-200' : 'bg-emerald-500'}`} />
+                            <div>
+                              <p className="font-bold text-sm text-navy-900 leading-tight">{notification.title}</p>
+                              <p className="text-xs text-navy-500 mt-1 leading-relaxed text-balance">{notification.message}</p>
+                              <p className="text-[10px] font-black text-navy-300 mt-2 uppercase tracking-widest">{notification.time}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="p-4 border-t border-navy-50 bg-navy-50/30">
+                      <button onClick={markAllRead} className="w-full py-4 rounded-2xl bg-navy-900 text-white text-xs font-black uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-navy-100">
+                        Mark All Protocols Checked
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
