@@ -599,6 +599,7 @@ export default function HomePage() {
                         try {
                           await signOut()
                           setProfileOpen(false)
+                          window.location.reload()
                         } catch (error) {
                           console.error('Logout error:', error)
                           showAlert('Session Error', 'The institutional handshake was interrupted. Failed to terminate session.')
