@@ -382,6 +382,7 @@ export default function ContractGenerator() {
                                             <input
                                                 type="file"
                                                 id="signed-upload"
+                                                name="signed_instrument"
                                                 className="hidden"
                                                 onChange={handleFileUpload}
                                                 accept=".pdf,image/*"

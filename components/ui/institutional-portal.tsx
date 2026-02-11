@@ -96,6 +96,8 @@ export function ActionModal({
                         <div className="space-y-2">
                             <label className="text-xs font-black uppercase tracking-widest text-navy-400">Parameter Input</label>
                             <input
+                                id="statutory-prompt-input"
+                                name="prompt_input"
                                 autoFocus
                                 type="text"
                                 value={inputValue}

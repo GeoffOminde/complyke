@@ -149,6 +149,7 @@ export default function PrivacyPolicyWizard() {
 
                                     <label className={`group relative flex items-start gap-4 p-5 rounded-3xl border-2 transition-all cursor-pointer ${formData.collectsPhoneNumbers ? 'bg-navy-950 text-white border-navy-900 shadow-xl' : 'bg-white border-navy-50 hover:border-navy-200'}`}>
                                         <input
+                                            id="collect-phone-numbers"
                                             type="checkbox"
                                             name="collectsPhoneNumbers"
                                             checked={formData.collectsPhoneNumbers}
@@ -173,6 +174,7 @@ export default function PrivacyPolicyWizard() {
 
                                     <label className={`group relative flex items-start gap-4 p-5 rounded-3xl border-2 transition-all cursor-pointer ${formData.hasCCTV ? 'bg-navy-950 text-white border-navy-900 shadow-xl' : 'bg-white border-navy-50 hover:border-navy-200'}`}>
                                         <input
+                                            id="has-cctv-surveillance"
                                             type="checkbox"
                                             name="hasCCTV"
                                             checked={formData.hasCCTV}

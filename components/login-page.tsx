@@ -88,6 +88,8 @@ export default function LoginPage() {
                                     Business Name
                                 </label>
                                 <Input
+                                    id="signup-business-name"
+                                    name="business_name"
                                     type="text"
                                     value={businessName}
                                     onChange={(e) => setBusinessName(e.target.value)}
@@ -104,6 +106,8 @@ export default function LoginPage() {
                                 Email Address
                             </label>
                             <Input
+                                id={isLogin ? "signin-email" : "signup-email"}
+                                name="email"
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
@@ -119,6 +123,8 @@ export default function LoginPage() {
                                 Password
                             </label>
                             <Input
+                                id={isLogin ? "signin-password" : "signup-password"}
+                                name="password"
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}

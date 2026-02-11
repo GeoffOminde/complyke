@@ -127,8 +127,8 @@ export default function ReceiptScanner() {
                             onDragOver={handleDrag}
                             onDrop={handleDrop}
                             className={`relative group transition-all duration-500 rounded-[32px] border-2 border-dashed p-12 flex flex-col items-center justify-center text-center cursor-pointer ${dragActive
-                                    ? 'border-navy-900 bg-navy-50 scale-[0.99]'
-                                    : 'border-navy-200 bg-white hover:border-navy-400 hover:bg-navy-50/50'
+                                ? 'border-navy-900 bg-navy-50 scale-[0.99]'
+                                : 'border-navy-200 bg-white hover:border-navy-400 hover:bg-navy-50/50'
                                 }`}
                             onClick={() => document.getElementById('receipt-upload')?.click()}
                         >
@@ -151,6 +151,7 @@ export default function ReceiptScanner() {
 
                             <input
                                 id="receipt-upload"
+                                name="receipt_binary"
                                 type="file"
                                 accept="image/*"
                                 capture="environment"
@@ -194,8 +195,8 @@ export default function ReceiptScanner() {
                             <div className="space-y-6 animate-slide-in">
                                 {/* Verdict Banner */}
                                 <div className={`p-6 rounded-3xl border shadow-xl flex items-center justify-between gap-4 ${receiptData.isDeductible
-                                        ? 'bg-success-gradient border-emerald-400 text-white'
-                                        : 'bg-alert-gradient border-rose-400 text-white'
+                                    ? 'bg-success-gradient border-emerald-400 text-white'
+                                    : 'bg-alert-gradient border-rose-400 text-white'
                                     }`}>
                                     <div className="flex items-center gap-4">
                                         <div className="h-12 w-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center">

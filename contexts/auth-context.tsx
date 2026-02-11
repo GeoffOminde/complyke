@@ -22,6 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true)
 
     const fetchProfile = async (userId: string) => {
+        console.log('🛡️ Vault: Fetching institutional profile for', userId)
         try {
             const { data, error } = await supabase
                 .from('profiles')
@@ -30,12 +31,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .maybeSingle()
 
             if (error) {
-                console.error('Error fetching profile:', error.message || error)
+                console.error('❌ Vault Error:', error.message || error)
                 return
             }
 
             if (!data) {
-                console.log('Profile missing, creating default institutional profile...')
+                console.log('🛡️ Vault: Creating new institutional record...')
                 const { data: newProfile, error: createError } = await supabase
                     .from('profiles')
                     .insert({
@@ -52,16 +53,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     .single()
 
                 if (createError) {
-                    console.error('Error creating profile:', createError.message || createError)
+                    console.error('❌ Vault Creation Failed:', createError.message || createError)
                     return
                 }
                 setProfile(newProfile)
                 return
             }
 
+            console.log('✅ Vault: Profile loaded successfully')
             setProfile(data)
         } catch (error: any) {
-            console.error('Unexpected error in fetchProfile:', error.message || error)
+            console.error('❌ Vault Unexpected Error:', error.message || error)
         }
     }
 

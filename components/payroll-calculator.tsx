@@ -107,6 +107,8 @@ export default function PayrollCalculator() {
                             <label className="text-sm font-bold text-navy-800">Business Location</label>
                             <div className="relative">
                                 <select
+                                    id="business-location"
+                                    name="business_location"
                                     value={location}
                                     onChange={(e) => setLocation(e.target.value)}
                                     className="w-full h-12 px-4 rounded-md border border-navy-200 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-navy-500 appearance-none pr-10"
