@@ -302,7 +302,8 @@ export default function HomePage() {
                   </div>
                   <Button
                     onClick={() => {
-                      const hasAccess = profile?.subscription_plan === 'sme-power' || profile?.subscription_plan === 'enterprise' || profile?.role === 'super-admin'
+                      const isAdmin = profile?.role === 'super-admin' || user?.email === 'geoffominde8@gmail.com'
+                      const hasAccess = profile?.subscription_plan === 'sme-power' || profile?.subscription_plan === 'enterprise' || isAdmin
                       if (!hasAccess) {
                         showAlert("SMS Access Restricted", "Statutory SMS Reminders require an SME Power or Enterprise subscription tier. Upgrade your business protocol to unlock this terminal.")
                         return
@@ -330,7 +331,7 @@ export default function HomePage() {
                         "254..."
                       )
                     }}
-                    className={`h-10 px-4 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${(profile?.subscription_plan === 'sme-power' || profile?.subscription_plan === 'enterprise' || profile?.role === 'super-admin')
+                    className={`h-10 px-4 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${(profile?.subscription_plan === 'sme-power' || profile?.subscription_plan === 'enterprise' || profile?.role === 'super-admin' || user?.email === 'geoffominde8@gmail.com')
                       ? 'bg-navy-900 text-white hover:bg-navy-950 shadow-lg'
                       : 'bg-navy-100 text-navy-300'
                       }`}

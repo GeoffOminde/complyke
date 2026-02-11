@@ -9,6 +9,9 @@ import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/auth-context"
 import { useInstitutionalUI } from "@/contexts/ui-context"
 
+import DocumentPreviewModal from "@/components/document-preview-modal"
+import { downloadAsWord } from "@/lib/download-helpers"
+
 interface ComplianceItem {
     id: string
     label: string
@@ -20,10 +23,17 @@ export default function RiskDashboard() {
     const { user, profile } = useAuth()
     const { showToast, showAlert } = useInstitutionalUI()
     const [loading, setLoading] = useState(true)
+    const [previewDoc, setPreviewDoc] = useState<{ isOpen: boolean; title: string; content: string; type: 'contract' | 'policy' }>({
+        isOpen: false,
+        title: '',
+        content: '',
+        type: 'contract'
+    })
 
     const isEnterprise = profile?.subscription_plan === 'enterprise' || profile?.role === 'super-admin'
     const isSME = profile?.subscription_plan === 'sme-power' || isEnterprise || profile?.role === 'super-admin'
-    const isSuperAdmin = profile?.role === 'super-admin'
+    const isSuperAdmin = profile?.role === 'super-admin' || user?.email === 'geoffominde8@gmail.com' // Authorized Administrator Override
+
     const [complianceItems, setComplianceItems] = useState<ComplianceItem[]>([
         { id: "sha", label: "SHA/SHIF Registration", completed: false, icon: <Shield className="h-4 w-4" /> },
         { id: "housing", label: "Housing Levy Compliance", completed: false, icon: <Receipt className="h-4 w-4" /> },
@@ -85,9 +95,39 @@ export default function RiskDashboard() {
 
     const completedCount = complianceItems.filter(item => item.completed).length
     const totalCount = complianceItems.length
+
+    // Hardening: Ensure Super Admin always 100% even if data is missing
     const healthScore = isSuperAdmin ? 100 : Math.round((completedCount / totalCount) * 100)
 
     const isAtRisk = healthScore < 75
+
+    const handlePreviewFromVault = async (id: string, type: 'contract' | 'policy') => {
+        if (!user) return
+
+        try {
+            const { data, error } = await supabase
+                .from(type === 'contract' ? 'contracts' : 'privacy_policies')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single()
+
+            if (error || !data) {
+                showAlert('Vault Error', 'No archived instruments found. Please generate a document first.')
+                return
+            }
+
+            setPreviewDoc({
+                isOpen: true,
+                title: type === 'contract' ? 'Institutional Employment Contract' : 'Privacy & Data Governance Policy',
+                content: type === 'contract' ? data.contract_content : data.policy_content,
+                type
+            })
+        } catch (err) {
+            console.error('Handshake error:', err)
+        }
+    }
 
     return (
         <div className="space-y-8 animate-fade-in">
@@ -95,10 +135,10 @@ export default function RiskDashboard() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-navy-950 tracking-tight">
-                        {isSuperAdmin ? 'Command Console' : 'Risk Dashboard'}
+                        {isSuperAdmin ? 'Institutional Command' : 'Risk Dashboard'}
                     </h1>
                     <p className="text-navy-600 font-medium">
-                        {isSuperAdmin ? 'Institutional Override Active' : 'Monitoring your business compliance in real-time'}
+                        {isSuperAdmin ? 'Full Statutory Override Active' : 'Monitoring your business compliance in real-time'}
                     </p>
                 </div>
                 <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-navy-100 shadow-sm">
@@ -130,7 +170,7 @@ export default function RiskDashboard() {
                         </div>
                         <div className="space-y-1">
                             <p className="text-sm font-bold text-navy-800 uppercase tracking-wide">
-                                {isAtRisk ? 'Attention Required' : 'Institutional Safety'}
+                                {isSuperAdmin ? 'Institutional Safe' : isAtRisk ? 'Attention Required' : 'Institutional Safety'}
                             </p>
                             <p className="text-xs text-navy-400 font-medium font-mono" suppressHydrationWarning>
                                 Audit ID: {auditId || "STABILIZING..."}
@@ -265,7 +305,10 @@ export default function RiskDashboard() {
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-navy-50">
-                                <div className="p-4 hover:bg-navy-50/50 transition-colors cursor-pointer group">
+                                <div
+                                    onClick={() => handlePreviewFromVault('latest-contract', 'contract')}
+                                    className="p-4 hover:bg-navy-50/50 transition-colors cursor-pointer group"
+                                >
                                     <div className="flex items-center gap-3">
                                         <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
                                             <Users className="h-4 w-4" />
@@ -276,7 +319,10 @@ export default function RiskDashboard() {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="p-4 hover:bg-navy-50/50 transition-colors cursor-pointer group">
+                                <div
+                                    onClick={() => handlePreviewFromVault('latest-policy', 'policy')}
+                                    className="p-4 hover:bg-navy-50/50 transition-colors cursor-pointer group"
+                                >
                                     <div className="flex items-center gap-3">
                                         <div className="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                                             <Lock className="h-4 w-4" />
@@ -304,6 +350,20 @@ export default function RiskDashboard() {
                     </Card>
                 </div>
             </div>
+
+            {/* Forensic Preview Modal */}
+            <DocumentPreviewModal
+                isOpen={previewDoc.isOpen}
+                onClose={() => setPreviewDoc(prev => ({ ...prev, isOpen: false }))}
+                title={previewDoc.title}
+                content={previewDoc.content}
+                type={previewDoc.type}
+                onDownloadWord={() => downloadAsWord(previewDoc.content, previewDoc.title.replace(/\s+/g, '_'))}
+                onDownloadPDF={async () => {
+                    const { downloadAsPDF } = await import('@/lib/download-helpers')
+                    await downloadAsPDF(previewDoc.content, previewDoc.title.replace(/\s+/g, '_'))
+                }}
+            />
 
             {/* Compliance Badges Footer */}
             <div className="pt-8 border-t border-navy-100">

@@ -120,14 +120,14 @@ export default function PricingPage() {
           const { error } = await supabase
             .from('profiles')
             .update({
-              subscription_plan: 'trial',
+              subscription_plan: 'free_trial', // Match auth-context initial plan
               subscription_status: 'active'
             })
             .eq('id', user.id)
 
           if (!error) {
-            showToast("Trial Protocol Activated. Refreshing session...", "success")
-            setTimeout(() => window.location.reload(), 1500)
+            showToast("Trial Protocol Activated. Vault synchronized.", "success")
+            setTimeout(() => window.location.reload(), 1000)
           } else {
             showAlert("Vault Sync Error", "Failed to initialize trial: " + error.message)
           }
@@ -146,10 +146,12 @@ export default function PricingPage() {
 
     showPrompt(
       "Financial Authorization",
-      "To initiate the secure M-Pesa handshake and upgrade your vault, please enter your secondary reference number.",
+      "To initiate the secure M-Pesa handshake and upgrade your vault, please enter your M-Pesa phone number.",
       async (phoneNumber) => {
         if (!phoneNumber || !user) return
         setLoading(true)
+
+        showToast("Processing M-Pesa Handshake...", "info")
 
         // Simulating Payment Handshake then DB Update
         setTimeout(async () => {
@@ -162,13 +164,13 @@ export default function PricingPage() {
             .eq('id', user.id)
 
           if (!error) {
-            showToast(`M-Pesa Verified. Tier [${planName}] Unlocked.`, "success")
-            setTimeout(() => window.location.reload(), 2000)
+            showToast(`M-Pesa Verified. Tier [${planName}] Unlocked successfully.`, "success")
+            setTimeout(() => window.location.reload(), 1500)
           } else {
             showAlert("Sync Error", "Payment received but vault sync failed: " + error.message)
           }
           setLoading(false)
-        }, 1500)
+        }, 2000)
       },
       "254..."
     )

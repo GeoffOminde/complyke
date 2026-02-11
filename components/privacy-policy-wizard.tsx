@@ -22,6 +22,7 @@ import { generatePrivacyPolicy } from "@/lib/privacy-policy-generator"
 import { downloadAsWord } from "@/lib/download-helpers"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/auth-context"
+import DocumentPreviewModal from "@/components/document-preview-modal"
 
 export default function PrivacyPolicyWizard() {
     const { user, profile } = useAuth()
@@ -39,6 +40,7 @@ export default function PrivacyPolicyWizard() {
     const [isGenerating, setIsGenerating] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
     const [isDownloadingPDF, setIsDownloadingPDF] = useState(false)
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false)
 
     useEffect(() => {
         if (profile) {
@@ -76,6 +78,7 @@ export default function PrivacyPolicyWizard() {
 
         setGeneratedPolicy(policy)
         setIsGenerating(false)
+        setIsPreviewOpen(true) // Auto-Preview Governance Handshake
 
         // Step 2: Save to Supabase if user is logged in
         if (user) {
@@ -328,9 +331,18 @@ export default function PrivacyPolicyWizard() {
                                     )}
                                 </Button>
                                 {generatedPolicy && (
-                                    <Button onClick={handleReset} variant="outline" className="h-16 w-16 rounded-[24px] border-navy-100 hover:bg-navy-50">
-                                        <RefreshCw className="h-6 w-6 text-navy-400" />
-                                    </Button>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            onClick={() => setIsPreviewOpen(true)}
+                                            className="flex-1 h-16 bg-blue-600 text-white rounded-[24px] shadow-2xl shadow-blue-100 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                                        >
+                                            <ScrollText className="mr-2 h-5 w-5" />
+                                            Preview Instrument
+                                        </Button>
+                                        <Button onClick={handleReset} variant="outline" className="h-16 w-16 rounded-[24px] border-navy-100 hover:bg-navy-50">
+                                            <RefreshCw className="h-6 w-6 text-navy-400" />
+                                        </Button>
+                                    </div>
                                 )}
                             </div>
                         </CardContent>
@@ -407,6 +419,17 @@ export default function PrivacyPolicyWizard() {
                     )}
                 </div>
             </div>
+
+            {/* Forensic Preview */}
+            <DocumentPreviewModal
+                isOpen={isPreviewOpen}
+                onClose={() => setIsPreviewOpen(false)}
+                title="GDPR/DPA Policy Instrument"
+                content={generatedPolicy}
+                type="policy"
+                onDownloadWord={handleDownload}
+                onDownloadPDF={handleDownloadPDF}
+            />
         </div>
     )
 }

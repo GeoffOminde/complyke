@@ -4,21 +4,25 @@ import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Calculator, TrendingDown, ShieldCheck, CheckCircle2, AlertTriangle, FileCheck, Landmark, ChevronDown } from "lucide-react"
+import { Calculator, TrendingDown, ShieldCheck, CheckCircle2, AlertTriangle, FileCheck, Landmark, ChevronDown, Lock, ArrowRight } from "lucide-react"
 import { calculatePayroll, formatKES } from "@/lib/tax-calculator"
 import { verifyCalculation, VerificationReport } from "@/lib/verification-service"
 import { supabase } from "@/lib/supabase"
+import DocumentPreviewModal from "@/components/document-preview-modal"
+import { generatePayslip } from "@/lib/payslip-generator"
 import { useAuth } from "@/contexts/auth-context"
 import { useInstitutionalUI } from "@/contexts/ui-context"
 
 export default function PayrollCalculator() {
-    const { user } = useAuth()
+    const { user, profile } = useAuth()
     const { showAlert } = useInstitutionalUI()
     const [grossSalary, setGrossSalary] = useState("")
     const [location, setLocation] = useState("other")
     const [breakdown, setBreakdown] = useState<ReturnType<typeof calculatePayroll> | null>(null)
     const [report, setReport] = useState<VerificationReport | null>(null)
     const [isSaving, setIsSaving] = useState(false)
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+    const [payslipContent, setPayslipContent] = useState("")
 
     const handleCalculate = async () => {
         const salary = parseFloat(grossSalary)
@@ -124,9 +128,16 @@ export default function PayrollCalculator() {
 
                     <div className="mt-8 flex flex-col sm:flex-row gap-3">
                         <Button
-                            onClick={handleCalculate}
-                            className="flex-1 h-12 text-lg font-bold bg-navy-900 hover:bg-navy-950 transition-all shadow-lg shadow-navy-200"
+                            onClick={() => {
+                                if (profile?.subscription_plan === 'free_trial' || !profile?.subscription_plan) {
+                                    showAlert("Institutional Tier Restriction", "Your current evaluation protocol is limited to document synthesis. Please upgrade to a Professional tier to unlock the Deterministic Payroll Engine.")
+                                    return
+                                }
+                                handleCalculate()
+                            }}
+                            className="flex-1 h-12 text-lg font-bold bg-navy-900 hover:bg-navy-950 transition-all shadow-lg shadow-navy-200 flex items-center justify-center gap-2"
                         >
+                            {(profile?.subscription_plan === 'free_trial' || !profile?.subscription_plan) && <Lock className="h-4 w-4" />}
                             Run Deterministic Engine
                         </Button>
                         {breakdown && (
@@ -242,7 +253,29 @@ export default function PayrollCalculator() {
                                     ))}
                                 </div>
 
-                                <div className="pt-6 border-t border-navy-100 mt-6">
+                                <div className="pt-6 border-t border-navy-100 mt-6 space-y-4">
+                                    <Button
+                                        onClick={() => {
+                                            const content = generatePayslip({
+                                                employeeName: "Institutional Employee",
+                                                businessName: profile?.business_name || "ComplyKe Entity",
+                                                month: new Date().toLocaleString('default', { month: 'long', year: 'numeric' }),
+                                                grossSalary: breakdown.grossSalary,
+                                                housingLevy: breakdown.housingLevyEmployee,
+                                                shif: breakdown.shif,
+                                                nssf: breakdown.nssf,
+                                                paye: breakdown.paye,
+                                                netPay: breakdown.netPay
+                                            })
+                                            setPayslipContent(content)
+                                            setIsPreviewOpen(true)
+                                        }}
+                                        className="w-full h-12 bg-blue-600 text-white rounded-xl shadow-xl shadow-blue-100 font-bold hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <FileCheck className="h-5 w-5" />
+                                        Preview Institutional Payslip
+                                    </Button>
+
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="p-3 bg-navy-50 rounded-lg border border-navy-100">
                                             <p className="text-[10px] font-bold text-navy-400 uppercase mb-1">Audit Timestamp</p>
@@ -288,6 +321,23 @@ export default function PayrollCalculator() {
                     </div>
                 </div>
             )}
+
+            {/* Forensic Preview */}
+            <DocumentPreviewModal
+                isOpen={isPreviewOpen}
+                onClose={() => setIsPreviewOpen(false)}
+                title="Institutional Payslip Instrument"
+                content={payslipContent}
+                type="contract"
+                onDownloadWord={async () => {
+                    const { downloadAsWord } = await import('@/lib/download-helpers')
+                    await downloadAsWord(payslipContent, `Payslip_${new Date().toISOString().split('T')[0]}`)
+                }}
+                onDownloadPDF={async () => {
+                    const { downloadAsPDF } = await import('@/lib/download-helpers')
+                    await downloadAsPDF(payslipContent, `Payslip_${new Date().toISOString().split('T')[0]}`)
+                }}
+            />
         </div>
     )
 }
