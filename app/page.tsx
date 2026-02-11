@@ -759,6 +759,8 @@ export default function HomePage() {
                     <div>
                       <label className="block text-sm font-medium text-navy-700 mb-2">KRA PIN</label>
                       <input
+                        id="biz-kra-pin"
+                        name="kra_pin"
                         type="text"
                         value={profileForm.kra_pin}
                         onChange={(e) => setProfileForm({ ...profileForm, kra_pin: e.target.value })}
@@ -768,6 +770,8 @@ export default function HomePage() {
                     <div>
                       <label className="block text-sm font-medium text-navy-700 mb-2">Industry</label>
                       <select
+                        id="biz-industry"
+                        name="industry"
                         value={profileForm.industry}
                         onChange={(e) => setProfileForm({ ...profileForm, industry: e.target.value })}
                         className="w-full px-4 py-2 rounded-lg border border-navy-300 focus:ring-2 focus:ring-navy-600 focus:border-transparent"
@@ -782,6 +786,8 @@ export default function HomePage() {
                     <div>
                       <label className="block text-sm font-medium text-navy-700 mb-2">Number of Employees</label>
                       <input
+                        id="biz-employees"
+                        name="employee_count"
                         type="number"
                         value={profileForm.employee_count}
                         onChange={(e) => setProfileForm({ ...profileForm, employee_count: parseInt(e.target.value) || 0 })}
@@ -798,6 +804,8 @@ export default function HomePage() {
                     <div>
                       <label className="block text-sm font-medium text-navy-700 mb-2">Full Name</label>
                       <input
+                        id="contact-fullname"
+                        name="full_name"
                         type="text"
                         value={profileForm.full_name}
                         onChange={(e) => setProfileForm({ ...profileForm, full_name: e.target.value })}
@@ -808,6 +816,8 @@ export default function HomePage() {
                     <div>
                       <label className="block text-sm font-medium text-navy-700 mb-2">Email</label>
                       <input
+                        id="contact-email"
+                        name="email"
                         type="email"
                         value={user?.email || ""}
                         readOnly
@@ -817,6 +827,8 @@ export default function HomePage() {
                     <div>
                       <label className="block text-sm font-medium text-navy-700 mb-2">Phone</label>
                       <input
+                        id="contact-phone"
+                        name="phone"
                         type="tel"
                         value={profileForm.phone}
                         onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
@@ -827,6 +839,8 @@ export default function HomePage() {
                     <div>
                       <label className="block text-sm font-medium text-navy-700 mb-2">Location</label>
                       <select
+                        id="contact-location"
+                        name="location"
                         value={profileForm.location}
                         onChange={(e) => setProfileForm({ ...profileForm, location: e.target.value })}
                         className="w-full px-4 py-2 rounded-lg border border-navy-300 focus:ring-2 focus:ring-navy-600 focus:border-transparent"
