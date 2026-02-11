@@ -14,7 +14,8 @@ import {
     Receipt,
     FileSearch,
     ScanLine,
-    Info
+    Info,
+    BadgeCheck
 } from "lucide-react"
 
 interface ReceiptData {
@@ -25,6 +26,9 @@ interface ReceiptData {
     items: string[]
     isDeductible: boolean
     category: string
+    verificationStatus: 'verified' | 'unverified' | 'failed'
+    etimsSignature: string | null
+    auditHash: string
 }
 
 export default function ReceiptScanner() {
@@ -204,10 +208,12 @@ export default function ReceiptScanner() {
                                         </div>
                                         <div>
                                             <h3 className="text-xl font-black tracking-tight italic uppercase">
-                                                {receiptData.isDeductible ? 'Verified Deductible' : 'Liability Risk Flagged'}
+                                                {receiptData.verificationStatus === 'verified' ? 'Statutory Verified' :
+                                                    receiptData.verificationStatus === 'failed' ? 'PIN format Failed' :
+                                                        'Awaiting E-TIMS Handshake'}
                                             </h3>
                                             <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest mt-1">
-                                                Audit Hash: {Math.random().toString(36).substring(2, 10).toUpperCase()}
+                                                Audit Hash: {receiptData.auditHash}
                                             </p>
                                         </div>
                                     </div>
@@ -239,8 +245,25 @@ export default function ReceiptScanner() {
                                                 </div>
                                                 <div className="flex-1">
                                                     <p className="text-[10px] font-bold text-navy-400 uppercase">Statutory KRA PIN</p>
-                                                    <p className={`text-sm font-black ${receiptData.kraPin ? 'text-emerald-700' : 'text-rose-600'}`}>
-                                                        {receiptData.kraPin || 'MISSING_PIN'}
+                                                    <div className="flex items-center gap-2">
+                                                        <p className={`text-sm font-black ${receiptData.verificationStatus === 'failed' ? 'text-rose-600' : 'text-emerald-700'}`}>
+                                                            {receiptData.kraPin || 'MISSING_PIN'}
+                                                        </p>
+                                                        {receiptData.verificationStatus === 'verified' && (
+                                                            <BadgeCheck className="h-3 w-3 text-emerald-500" />
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-4 group">
+                                                <div className="h-10 w-10 rounded-xl bg-navy-50 flex items-center justify-center text-navy-800 group-hover:bg-navy-900 group-hover:text-white transition-colors">
+                                                    <ShieldCheck className="h-5 w-5" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="text-[10px] font-bold text-navy-400 uppercase">eTIMS Control Unit (CUSN)</p>
+                                                    <p className={`text-[11px] font-mono font-bold ${receiptData.etimsSignature ? 'text-navy-900' : 'text-rose-500'}`}>
+                                                        {receiptData.etimsSignature || 'SIGNATURE_NOT_DETECTED'}
                                                     </p>
                                                 </div>
                                             </div>

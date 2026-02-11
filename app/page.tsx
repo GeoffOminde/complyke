@@ -485,7 +485,7 @@ export default function HomePage() {
               </button>
 
               {notificationsOpen && (
-                <div className="absolute right-0 top-14 w-96 bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-navy-100 animate-slide-in-top z-50 overflow-hidden">
+                <div className="absolute right-0 md:right-0 top-14 w-[calc(100vw-2rem)] sm:w-96 bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-navy-100 animate-slide-in-top z-50 overflow-hidden">
                   <div className="p-6 bg-navy-950 text-white text-left">
                     <div className="flex items-center justify-between mb-1">
                       <h3 className="font-bold text-lg">Statutory Alerts</h3>

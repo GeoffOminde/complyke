@@ -30,11 +30,25 @@ export async function sendSMS(to: string, message: string) {
             body: formBody
         });
 
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`❌ SMS Gateway Error (${response.status}):`, errorText);
+
+            if (response.status === 401) {
+                return {
+                    success: false,
+                    error: 'Unauthorized: Your AfricasTalking credentials (API Key or Username) are invalid. Please verify them in your dashboard.'
+                };
+            }
+
+            return { success: false, error: `Gateway Error: ${response.statusText}` };
+        }
+
         const data = await response.json();
         console.log('✅ SMS Response:', data);
         return { success: true, data };
-    } catch (error) {
-        console.error('❌ SMS Error:', error);
-        return { success: false, error };
+    } catch (error: any) {
+        console.error('❌ SMS Connection Error:', error);
+        return { success: false, error: error.message || 'Network connection to SMS gateway failed' };
     }
 }

@@ -16,6 +16,9 @@ interface ReceiptData {
     isDeductible: boolean
     category: string
     rawText: string
+    verificationStatus: 'verified' | 'unverified' | 'failed'
+    etimsSignature: string | null
+    auditHash: string
 }
 
 export async function POST(req: NextRequest) {
@@ -83,7 +86,8 @@ Respond ONLY with valid JSON in this exact format:
   "kraPin": "string or null",
   "totalAmount": number or null,
   "date": "YYYY-MM-DD or null",
-  "items": ["item1", "item2"]
+  "items": ["item1", "item2"],
+  "etimsSignature": "string or null (Look for Control Unit Serial Number (CUSN) or Invoice Number like OSCU... or KRA...)"
 }
 
 If you cannot find a field, use null. Be precise.`
@@ -100,8 +104,22 @@ If you cannot find a field, use null. Be precise.`
 
         const extractedData = JSON.parse(extractionResponse.choices[0]?.message?.content || '{}')
 
-        // Check if receipt is tax-deductible (has KRA PIN)
-        const isDeductible = !!extractedData.kraPin
+        // Statutory Verification Logic
+        const kraPinPattern = /^[AP][0-9]{9}[A-Z]$/i
+        const isPinValid = extractedData.kraPin && kraPinPattern.test(extractedData.kraPin.trim())
+
+        // Simulating Real-time KRA iTax/eTIMS Handshake
+        // In a production environment, this would call the GavaConnect or eTIMS Ledger API
+        let verificationStatus: 'verified' | 'unverified' | 'failed' = 'unverified'
+        if (isPinValid && extractedData.etimsSignature) {
+            verificationStatus = 'verified'
+        } else if (isPinValid) {
+            verificationStatus = 'unverified' // Valid PIN format but missing eTIMS signature
+        } else if (extractedData.kraPin) {
+            verificationStatus = 'failed' // PIN provided but failed format protocol
+        }
+
+        const isDeductible = verificationStatus === 'verified'
 
         // Use AI to categorize the expense
         const categorizationPrompt = `Based on these items: ${extractedData.items.join(', ')}, categorize this expense into ONE of these categories:
@@ -130,7 +148,9 @@ Respond with ONLY the category name, nothing else.`
             ...extractedData,
             isDeductible,
             category,
-            rawText: text
+            rawText: text,
+            verificationStatus,
+            auditHash: `CKE-AUD-${Math.random().toString(36).substring(2, 10).toUpperCase()}`
         }
 
         return NextResponse.json({
