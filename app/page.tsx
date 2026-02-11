@@ -302,7 +302,7 @@ export default function HomePage() {
                   </div>
                   <Button
                     onClick={() => {
-                      const isAdmin = profile?.role === 'super-admin' || user?.email === 'geoffominde8@gmail.com'
+                      const isAdmin = profile?.role === 'super-admin' || user?.email?.toLowerCase() === 'geoffominde8@gmail.com'
                       const hasAccess = profile?.subscription_plan === 'sme-power' || profile?.subscription_plan === 'enterprise' || isAdmin
                       if (!hasAccess) {
                         showAlert("SMS Access Restricted", "Statutory SMS Reminders require an SME Power or Enterprise subscription tier. Upgrade your business protocol to unlock this terminal.")
@@ -331,7 +331,7 @@ export default function HomePage() {
                         "254..."
                       )
                     }}
-                    className={`h-10 px-4 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${(profile?.subscription_plan === 'sme-power' || profile?.subscription_plan === 'enterprise' || profile?.role === 'super-admin' || user?.email === 'geoffominde8@gmail.com')
+                    className={`h-10 px-4 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${(profile?.subscription_plan === 'sme-power' || profile?.subscription_plan === 'enterprise' || profile?.role === 'super-admin' || user?.email?.toLowerCase() === 'geoffominde8@gmail.com')
                       ? 'bg-navy-900 text-white hover:bg-navy-950 shadow-lg'
                       : 'bg-navy-100 text-navy-300'
                       }`}
@@ -619,22 +619,26 @@ export default function HomePage() {
                     <button
                       onClick={async () => {
                         try {
-                          // Call server-side signout protocol to ensure cookies are purged
-                          await fetch('/api/auth/signout', { method: 'POST' })
+                          setProfileOpen(false)
+                          // 1. Call server-side signout protocol (purges cookies)
+                          try {
+                            await fetch('/api/auth/signout', { method: 'POST' })
+                          } catch (e) {
+                            console.warn('Server handshake failed, proceeding with client purge')
+                          }
 
-                          // Client-side cleanup
+                          // 2. Client-side cleanup
                           await signOut()
 
-                          setProfileOpen(false)
-
-                          // Final institutional purge: redirect to origin
-                          window.location.replace(window.location.origin)
+                          // 3. Final institutional purge: redirect to origin
+                          window.location.href = window.location.origin
                         } catch (error) {
                           console.error('Logout error:', error)
-                          showAlert('Session Error', 'The institutional handshake was interrupted. Failed to terminate session.')
+                          // Force redirect anyway as a fail-safe
+                          window.location.href = window.location.origin
                         }
                       }}
-                      className="w-full px-4 py-3 rounded-2xl bg-white text-rose-600 text-sm font-bold border border-rose-100 shadow-sm hover:bg-rose-600 hover:text-white transition-all"
+                      className="w-full px-4 py-3 rounded-2xl bg-white text-rose-600 text-sm font-bold border border-rose-100 shadow-sm hover:bg-rose-600 hover:text-white transition-all transform active:scale-95"
                     >
                       Terminate Session
                     </button>

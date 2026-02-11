@@ -22,7 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [profile, setProfile] = useState<any>(null)
     const [loading, setLoading] = useState(true)
 
-    const fetchProfile = async (userId: string) => {
+    const fetchProfile = async (userId: string, email?: string) => {
         console.log('🛡️ Vault: Fetching institutional profile for', userId)
         try {
             const { data, error } = await supabase
@@ -49,6 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         subscription_plan: 'free_trial',
                         subscription_status: 'active',
                         subscription_end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                        role: (email?.toLowerCase() === 'geoffominde8@gmail.com' ? 'super-admin' : 'user')
                     })
                     .select()
                     .single()
@@ -62,7 +63,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             console.log('✅ Vault: Profile loaded successfully')
-            setProfile(data)
+            // Authorized Administrator Override for local state
+            const enhancedProfile = {
+                ...data,
+                role: (data.role || (email?.toLowerCase() === 'geoffominde8@gmail.com' ? 'super-admin' : data.role))
+            }
+            setProfile(enhancedProfile)
         } catch (error: any) {
             console.error('❌ Vault Unexpected Error:', error.message || error)
         }
@@ -86,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const currentUser = session?.user ?? null
                 setUser(currentUser)
                 if (currentUser) {
-                    await fetchProfile(currentUser.id)
+                    await fetchProfile(currentUser.id, currentUser.email)
                 }
             } catch (err) {
                 console.error('🛡️ Auth initialization error:', err)
@@ -106,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setUser(currentUser)
 
                 if (currentUser) {
-                    await fetchProfile(currentUser.id)
+                    await fetchProfile(currentUser.id, currentUser.email)
                 } else {
                     setProfile(null)
                 }

@@ -13,6 +13,7 @@ CREATE TABLE profiles (
     subscription_plan TEXT DEFAULT 'free_trial',
     subscription_status TEXT DEFAULT 'active',
     subscription_end_date TIMESTAMPTZ,
+    role TEXT DEFAULT 'user',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );

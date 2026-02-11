@@ -32,7 +32,7 @@ export default function RiskDashboard() {
 
     const isEnterprise = profile?.subscription_plan === 'enterprise' || profile?.role === 'super-admin'
     const isSME = profile?.subscription_plan === 'sme-power' || isEnterprise || profile?.role === 'super-admin'
-    const isSuperAdmin = profile?.role === 'super-admin' || user?.email === 'geoffominde8@gmail.com' // Authorized Administrator Override
+    const isSuperAdmin = profile?.role === 'super-admin' || user?.email?.toLowerCase() === 'geoffominde8@gmail.com' // Authorized Administrator Override
 
     const [complianceItems, setComplianceItems] = useState<ComplianceItem[]>([
         { id: "sha", label: "SHA/SHIF Registration", completed: false, icon: <Shield className="h-4 w-4" /> },
