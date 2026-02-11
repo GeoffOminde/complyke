@@ -260,6 +260,7 @@ export default function PayrollCalculator() {
                                             const content = generatePayslip({
                                                 employeeName: "Institutional Employee",
                                                 businessName: profile?.business_name || "ComplyKe Entity",
+                                                logoUrl: profile?.logo_url || "https://complyke.com/logo.png", // Use stored logo or default
                                                 month: new Date().toLocaleString('default', { month: 'long', year: 'numeric' }),
                                                 grossSalary: breakdown.grossSalary,
                                                 housingLevy: breakdown.housingLevyEmployee,

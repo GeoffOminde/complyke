@@ -198,7 +198,7 @@ If you deduct it arbitrarily, it is illegal.
 Note: This is for information only. For court cases, please consult a licensed Advocate."`
 
     const response = await openai.chat.completions.create({
-      model: isGeminiEnabled ? 'gemini-1.5-flash' : 'gpt-4o',
+      model: isGeminiEnabled ? 'gemini-2.0-flash' : 'gpt-4o',
       messages: [
         { role: 'system', content: systemPrompt },
         ...messages,
