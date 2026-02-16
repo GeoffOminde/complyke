@@ -205,21 +205,23 @@ export default function LoginPage() {
                         Google
                     </Button>
 
-                    {(error?.toLowerCase().includes('refresh token') || error?.toLowerCase().includes('invalid session')) && (
-                        <div className="pt-2">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    localStorage.clear();
-                                    sessionStorage.clear();
-                                    window.location.reload();
-                                }}
-                                className="w-full text-xs text-rose-500 hover:underline font-bold uppercase tracking-widest"
-                            >
-                                ⚠ Stale Session Detected: Purge Vault & Restart
-                            </button>
-                        </div>
-                    )}
+                    {(error?.toLowerCase().includes('refresh token') ||
+                        error?.toLowerCase().includes('invalid session') ||
+                        error?.toLowerCase().includes('failed to fetch')) && (
+                            <div className="pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        localStorage.clear();
+                                        sessionStorage.clear();
+                                        window.location.reload();
+                                    }}
+                                    className="w-full text-xs text-rose-500 hover:underline font-bold uppercase tracking-widest"
+                                >
+                                    ⚠ Stale Session Detected: Purge Vault & Restart
+                                </button>
+                            </div>
+                        )}
 
                     <div className="text-center pt-4">
                         <button

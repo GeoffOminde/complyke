@@ -205,11 +205,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [])
 
     const signIn = async (email: string, password: string) => {
-        const { error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        })
-        if (error) throw error
+        try {
+            const { error } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            })
+            if (error) {
+                console.error('Sign-in Error Object:', error)
+                throw error
+            }
+        } catch (err: any) {
+            console.error('Sign-in Unexpected Exception:', err)
+            throw err
+        }
     }
 
     const signUp = async (email: string, password: string, businessName?: string) => {

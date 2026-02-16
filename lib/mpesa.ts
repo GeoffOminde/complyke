@@ -91,7 +91,7 @@ export async function initiateMpesaPayment(
                 PartyA: phoneNumber,
                 PartyB: SHORTCODE,
                 PhoneNumber: phoneNumber,
-                CallBackURL: `${process.env.NEXT_PUBLIC_APP_URL}/api/mpesa/callback`,
+                CallBackURL: `${(process.env.NEXT_PUBLIC_APP_URL || '').trim()}/api/mpesa/callback`,
                 AccountReference: accountReference,
                 TransactionDesc: transactionDesc,
             },
