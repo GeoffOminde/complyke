@@ -32,6 +32,7 @@ type PricingPlan = {
   cta: string
   planCode?: PlanCode
   popular?: boolean
+  badge?: string
 }
 
 export default function PricingPage() {
@@ -40,7 +41,7 @@ export default function PricingPage() {
   const [loading, setLoading] = useState(false)
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly")
 
-  const plans = [
+  const plans: PricingPlan[] = [
     {
       name: "Institutional Trial",
       price: "0",

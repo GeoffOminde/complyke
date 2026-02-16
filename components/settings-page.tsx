@@ -111,7 +111,7 @@ export default function SettingsPage() {
             setServiceStatus(data.services || [])
             showToast('Service activated', 'success')
         } catch (error: unknown) {
-            showToast('Service Error', error instanceof Error ? error.message : 'Unable to activate service')
+            showToast(error instanceof Error ? error.message : 'Unable to activate service', 'error')
         } finally {
             setServiceLoading(false)
         }
