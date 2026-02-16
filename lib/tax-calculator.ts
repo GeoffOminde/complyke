@@ -103,7 +103,7 @@ export function calculateNSSF(grossSalary: number): number {
 export function calculatePAYE(grossSalary: number): number {
     // Taxable income = Gross - NSSF
     const nssf = calculateNSSF(grossSalary)
-    let taxableIncome = grossSalary - nssf
+    const taxableIncome = grossSalary - nssf
     let tax = 0
 
     // Apply progressive tax bands

@@ -1,154 +1,106 @@
 // Download helper functions for Contract Generator and Privacy Policy
+import type { Paragraph, TextRun } from 'docx'
 
 export async function downloadAsWord(content: string, filename: string): Promise<void> {
     try {
-        // Dynamic import to avoid SSR issues
-        const { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel, UnderlineType } = await import('docx')
+        const { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel, BorderStyle } = await import('docx')
         const { saveAs } = await import('file-saver')
 
-        // Parse the content into structured sections
         const lines = content.split('\n')
-        const paragraphs: any[] = []
+        const paragraphs: Paragraph[] = []
 
+        // 1. Add Institutional Letterhead
+        paragraphs.push(
+            new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                children: [
+                    new TextRun({ text: "COMPLYKE INSTITUTIONAL PROTOCOL", bold: true, size: 24, font: "Arial", color: "1a1a1a" }),
+                ],
+            })
+        )
+        paragraphs.push(
+            new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                children: [
+                    new TextRun({ text: "Statutory Compliance Framework • Section 25/26", size: 16, font: "Arial", color: "666666" }),
+                ],
+                spacing: { after: 400 }
+            })
+        )
+
+        // 2. Parse Content
         lines.forEach((line) => {
             const trimmedLine = line.trim()
-
             if (!trimmedLine || trimmedLine === '---') {
-                // Empty line or separator - add spacing
-                paragraphs.push(new Paragraph({ text: "" }))
-            } else if (trimmedLine.startsWith('## ')) {
-                // Markdown H2 headers (## TITLE)
-                const headerText = trimmedLine.replace(/^## /, '').replace(/\*\*/g, '')
-                paragraphs.push(
-                    new Paragraph({
-                        text: headerText,
-                        heading: HeadingLevel.HEADING_2,
-                        spacing: { before: 300, after: 200 }
-                    })
-                )
+                paragraphs.push(new Paragraph({ spacing: { after: 200 } }))
             } else if (trimmedLine === 'EMPLOYMENT CONTRACT' || trimmedLine === 'DATA PRIVACY POLICY') {
-                // Main title
                 paragraphs.push(
                     new Paragraph({
                         text: trimmedLine,
                         heading: HeadingLevel.HEADING_1,
                         alignment: AlignmentType.CENTER,
-                        spacing: { after: 400 }
+                        spacing: { before: 400, after: 600 },
+                        border: { bottom: { color: "000000", space: 1, style: BorderStyle.SINGLE, size: 12 } }
                     })
                 )
-            } else if (trimmedLine.match(/^Effective Date:/)) {
-                // Effective date
+            } else if (trimmedLine.startsWith('## ')) {
                 paragraphs.push(
                     new Paragraph({
                         children: [
-                            new TextRun({ text: trimmedLine, italics: true })
+                            new TextRun({ text: trimmedLine.replace(/^## /, '').replace(/\*\*/g, ''), bold: true, size: 28, font: "Arial" })
                         ],
-                        alignment: AlignmentType.LEFT,
-                        spacing: { after: 200 }
-                    })
-                )
-            } else if (trimmedLine.match(/^\*\*Company Name:\*\*/)) {
-                // Company name line
-                const companyText = trimmedLine.replace(/\*\*/g, '')
-                paragraphs.push(
-                    new Paragraph({
-                        children: [
-                            new TextRun({ text: companyText, bold: true })
-                        ],
-                        spacing: { after: 200 }
-                    })
-                )
-            } else if (trimmedLine.match(/^\d+\./)) {
-                // Numbered sections (1., 2., etc.)
-                const sectionText = trimmedLine.replace(/\*\*/g, '')
-                paragraphs.push(
-                    new Paragraph({
-                        text: sectionText,
-                        heading: HeadingLevel.HEADING_3,
-                        spacing: { before: 200, after: 100 }
-                    })
-                )
-            } else if (trimmedLine.match(/^[a-z]\)/)) {
-                // Sub-items (a), b), etc.)
-                paragraphs.push(
-                    new Paragraph({
-                        text: "    " + trimmedLine.replace(/\*\*/g, ''),
-                        spacing: { after: 100 }
-                    })
-                )
-            } else if (trimmedLine.startsWith('- **')) {
-                // Bullet points with bold headers (- **Title**: description)
-                const match = trimmedLine.match(/^- \*\*(.+?)\*\*:?\s*(.*)/)
-                if (match) {
-                    paragraphs.push(
-                        new Paragraph({
-                            children: [
-                                new TextRun({ text: "• ", bold: true }),
-                                new TextRun({ text: match[1], bold: true }),
-                                new TextRun({ text: match[2] ? `: ${match[2]}` : '' })
-                            ],
-                            spacing: { after: 100 }
-                        })
-                    )
-                } else {
-                    paragraphs.push(
-                        new Paragraph({
-                            text: "• " + trimmedLine.replace(/^- /, '').replace(/\*\*/g, ''),
-                            spacing: { after: 100 }
-                        })
-                    )
-                }
-            } else if (trimmedLine.startsWith('- ')) {
-                // Regular bullet points
-                paragraphs.push(
-                    new Paragraph({
-                        text: "• " + trimmedLine.replace(/^- /, '').replace(/\*\*/g, ''),
-                        spacing: { after: 100 }
+                        spacing: { before: 400, after: 200 }
                     })
                 )
             } else if (trimmedLine.includes('**')) {
-                // Lines with bold text (inline **bold**)
                 const parts = trimmedLine.split(/(\*\*[^*]+\*\*)/)
-                const textRuns: any[] = []
-
+                const textRuns: TextRun[] = []
                 parts.forEach(part => {
                     if (part.startsWith('**') && part.endsWith('**')) {
-                        textRuns.push(new TextRun({ text: part.replace(/\*\*/g, ''), bold: true }))
+                        textRuns.push(new TextRun({ text: part.replace(/\*\*/g, ''), bold: true, font: "Arial", size: 22 }))
                     } else if (part) {
-                        textRuns.push(new TextRun({ text: part }))
+                        textRuns.push(new TextRun({ text: part, font: "Arial", size: 22 }))
                     }
                 })
-
-                paragraphs.push(
-                    new Paragraph({
-                        children: textRuns,
-                        spacing: { after: 100 }
-                    })
-                )
+                paragraphs.push(new Paragraph({ children: textRuns, spacing: { after: 150 } }))
             } else {
-                // Regular text
                 paragraphs.push(
                     new Paragraph({
-                        text: trimmedLine,
-                        spacing: { after: 100 }
+                        children: [new TextRun({ text: trimmedLine, font: "Arial", size: 22 })],
+                        spacing: { after: 150 }
                     })
                 )
             }
         })
 
-        // Create the document
+        // 3. Add Signature Section
+        paragraphs.push(new Paragraph({ spacing: { before: 1200 } }))
+        paragraphs.push(
+            new Paragraph({
+                children: [
+                    new TextRun({ text: "__________________________             __________________________", bold: true }),
+                ],
+                alignment: AlignmentType.CENTER
+            })
+        )
+        paragraphs.push(
+            new Paragraph({
+                children: [
+                    new TextRun({ text: "Employer Authorized Official             Subject Consent Signature", size: 18, font: "Arial" }),
+                ],
+                alignment: AlignmentType.CENTER
+            })
+        )
+
         const doc = new Document({
             sections: [{
-                properties: {},
+                properties: { page: { margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } } },
                 children: paragraphs
             }]
         })
 
-        // Generate and download
         const blob = await Packer.toBlob(doc)
         saveAs(blob, `${filename}.docx`)
-
-        return Promise.resolve()
     } catch (error) {
         console.error("Word download error:", error)
         throw error
@@ -174,147 +126,97 @@ export function downloadAsText(content: string, filename: string): void {
 
 export async function downloadAsPDF(content: string, filename: string): Promise<void> {
     try {
-        // Dynamic import to avoid SSR issues
         const { jsPDF } = await import('jspdf')
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
 
-        const doc = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'a4'
-        })
-
-        // Set up fonts and styling
         const pageWidth = doc.internal.pageSize.getWidth()
         const pageHeight = doc.internal.pageSize.getHeight()
         const margin = 20
         const maxWidth = pageWidth - (margin * 2)
-        let yPosition = margin
+        let y = margin
 
-        // Parse content into lines
-        const lines = content.split('\n')
-
-        lines.forEach((line, index) => {
-            const trimmedLine = line.trim()
-
-            // Check if we need a new page
-            if (yPosition > pageHeight - margin) {
+        const checkNewPage = (needed: number) => {
+            if (y + needed > pageHeight - margin) {
                 doc.addPage()
-                yPosition = margin
+                y = margin
+                addHeader()
+            }
+        }
+
+        const addHeader = () => {
+            doc.setFillColor(26, 26, 26)
+            doc.rect(0, 0, pageWidth, 2, 'F')
+
+            doc.setFont('helvetica', 'bold')
+            doc.setFontSize(14)
+            doc.setTextColor(26, 26, 26)
+            doc.text("COMPLYKE INSTITUTIONAL PROTOCOL", pageWidth - margin, y + 5, { align: 'right' })
+
+            doc.setFontSize(8)
+            doc.setTextColor(100, 100, 100)
+            doc.text("Statutory Compliance Framework • Section 25/26 - Republic of Kenya", pageWidth - margin, y + 10, { align: 'right' })
+            y += 20
+        }
+
+        addHeader()
+
+        const lines = content.split('\n')
+        lines.forEach((line) => {
+            const trimmed = line.trim()
+            if (!trimmed || trimmed === '---') {
+                y += 5
+                return
             }
 
-            if (!trimmedLine || trimmedLine === '---') {
-                // Empty line or separator - add spacing
-                yPosition += 5
-            } else if (trimmedLine.startsWith('## ')) {
-                // H2 Headers
-                const headerText = trimmedLine.replace(/^## /, '').replace(/\*\*/g, '')
-                doc.setFontSize(14)
-                doc.setFont('helvetica', 'bold')
-                yPosition += 5
-                doc.text(headerText, margin, yPosition)
-                yPosition += 8
-                doc.setFont('helvetica', 'normal')
-                doc.setFontSize(10)
-            } else if (trimmedLine === 'EMPLOYMENT CONTRACT' || trimmedLine === 'DATA PRIVACY POLICY') {
-                // Main title
+            if (trimmed === 'EMPLOYMENT CONTRACT' || trimmed === 'DATA PRIVACY POLICY') {
+                checkNewPage(20)
                 doc.setFontSize(18)
                 doc.setFont('helvetica', 'bold')
-                const titleWidth = doc.getTextWidth(trimmedLine)
-                doc.text(trimmedLine, (pageWidth - titleWidth) / 2, yPosition)
-                yPosition += 12
-                doc.setFont('helvetica', 'normal')
-                doc.setFontSize(10)
-            } else if (trimmedLine.match(/^Effective Date:/)) {
-                // Effective date
-                doc.setFont('helvetica', 'italic')
-                doc.text(trimmedLine, margin, yPosition)
-                yPosition += 6
-                doc.setFont('helvetica', 'normal')
-            } else if (trimmedLine.match(/^\*\*Company Name:\*\*/)) {
-                // Company name
-                const text = trimmedLine.replace(/\*\*/g, '')
-                doc.setFont('helvetica', 'bold')
-                doc.text(text, margin, yPosition)
-                yPosition += 6
-                doc.setFont('helvetica', 'normal')
-            } else if (trimmedLine.match(/^\*\*\d+\./)) {
-                // Numbered sections with bold
-                const text = trimmedLine.replace(/\*\*/g, '')
-                doc.setFont('helvetica', 'bold')
-                yPosition += 3
-                const splitText = doc.splitTextToSize(text, maxWidth)
-                doc.text(splitText, margin, yPosition)
-                yPosition += splitText.length * 5 + 2
-                doc.setFont('helvetica', 'normal')
-            } else if (trimmedLine.match(/^[a-z]\)/)) {
-                // Sub-items
-                const splitText = doc.splitTextToSize(trimmedLine, maxWidth - 10)
-                doc.text(splitText, margin + 10, yPosition)
-                yPosition += splitText.length * 5
-            } else if (trimmedLine.startsWith('- **')) {
-                // Bullet points with bold
-                const match = trimmedLine.match(/^- \*\*(.+?)\*\*:?\s*(.*)/)
-                if (match) {
-                    doc.setFont('helvetica', 'bold')
-                    doc.text('•', margin, yPosition)
-                    doc.text(match[1], margin + 5, yPosition)
-                    doc.setFont('helvetica', 'normal')
-                    if (match[2]) {
-                        const descWidth = doc.getTextWidth(match[1])
-                        const splitDesc = doc.splitTextToSize(`: ${match[2]}`, maxWidth - descWidth - 10)
-                        doc.text(splitDesc, margin + 5 + descWidth, yPosition)
-                        yPosition += splitDesc.length * 5
-                    } else {
-                        yPosition += 5
-                    }
-                } else {
-                    const text = trimmedLine.replace(/^- /, '• ').replace(/\*\*/g, '')
-                    const splitText = doc.splitTextToSize(text, maxWidth - 5)
-                    doc.text(splitText, margin, yPosition)
-                    yPosition += splitText.length * 5
-                }
-            } else if (trimmedLine.startsWith('- ')) {
-                // Regular bullet points
-                const text = trimmedLine.replace(/^- /, '• ')
-                const splitText = doc.splitTextToSize(text, maxWidth - 5)
-                doc.text(splitText, margin, yPosition)
-                yPosition += splitText.length * 5
-            } else if (trimmedLine.includes('**')) {
-                // Lines with inline bold text
-                const parts = trimmedLine.split(/(\*\*[^*]+\*\*)/)
-                let xPosition = margin
-
-                parts.forEach(part => {
-                    if (part.startsWith('**') && part.endsWith('**')) {
-                        doc.setFont('helvetica', 'bold')
-                        const text = part.replace(/\*\*/g, '')
-                        doc.text(text, xPosition, yPosition)
-                        xPosition += doc.getTextWidth(text)
-                        doc.setFont('helvetica', 'normal')
-                    } else if (part) {
-                        const splitText = doc.splitTextToSize(part, maxWidth - (xPosition - margin))
-                        doc.text(splitText, xPosition, yPosition)
-                        if (splitText.length > 1) {
-                            yPosition += (splitText.length - 1) * 5
-                            xPosition = margin
-                        } else {
-                            xPosition += doc.getTextWidth(part)
-                        }
-                    }
-                })
-                yPosition += 5
-            } else {
-                // Regular text
-                const splitText = doc.splitTextToSize(trimmedLine, maxWidth)
-                doc.text(splitText, margin, yPosition)
-                yPosition += splitText.length * 5
+                doc.setTextColor(26, 26, 26)
+                const titleWidth = doc.getTextWidth(trimmed)
+                doc.text(trimmed, (pageWidth - titleWidth) / 2, y)
+                doc.setDrawColor(26, 26, 26)
+                doc.line(margin, y + 2, pageWidth - margin, y + 2)
+                y += 15
+                return
             }
+
+            if (trimmed.startsWith('## ')) {
+                checkNewPage(15)
+                const text = trimmed.replace(/^## /, '').replace(/\*\*/g, '')
+                doc.setFontSize(14)
+                doc.setFont('helvetica', 'bold')
+                doc.setTextColor(26, 26, 26)
+                doc.text(text, margin, y)
+                y += 10
+                return
+            }
+
+            // Normal text wrap
+            doc.setFontSize(10)
+            doc.setTextColor(40, 40, 40)
+            const plainText = trimmed.replace(/\*\*/g, '')
+            const splitLines = doc.splitTextToSize(plainText, maxWidth)
+            checkNewPage(splitLines.length * 6)
+
+            doc.setFont('helvetica', 'normal')
+            doc.text(splitLines, margin, y)
+            y += splitLines.length * 6
         })
 
-        // Save the PDF
-        doc.save(`${filename}.pdf`)
+        // Footer signatures
+        checkNewPage(40)
+        y = Math.max(y, pageHeight - 50)
+        doc.setDrawColor(200, 200, 200)
+        doc.line(margin, y, margin + 60, y)
+        doc.line(pageWidth - margin - 60, y, pageWidth - margin, y)
 
-        return Promise.resolve()
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'bold')
+        doc.text("Employer Authorized Official", margin + 30, y + 5, { align: 'center' })
+        doc.text("Subject Consent Signature", pageWidth - margin - 30, y + 5, { align: 'center' })
+
+        doc.save(`${filename}.pdf`)
     } catch (error) {
         console.error("PDF download error:", error)
         throw error

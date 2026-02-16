@@ -28,7 +28,8 @@ export function verifyCalculation(breakdown: PayrollBreakdown, location: string 
     const checks: VerificationCheck[] = []
 
     // 1. Minimum Wage Check
-    const minWage = (MINIMUM_WAGES_2026 as any)[location.toLowerCase()] || MINIMUM_WAGES_2026.other
+    const locationKey = location.toLowerCase() as keyof typeof MINIMUM_WAGES_2026
+    const minWage = MINIMUM_WAGES_2026[locationKey] || MINIMUM_WAGES_2026.other
     if (breakdown.grossSalary < minWage) {
         checks.push({
             id: 'min-wage',

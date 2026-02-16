@@ -111,6 +111,35 @@ npm run build
 npm start
 ```
 
+### Run E2E Tests
+
+```bash
+npm run test:e2e
+```
+
+For authenticated Playwright flows, set these environment variables:
+
+- `PLAYWRIGHT_TEST_EMAIL`
+- `PLAYWRIGHT_TEST_PASSWORD`
+
+### SMS Reminder Scheduler
+
+Scheduled SMS reminders are powered by a Vercel Cron job at `/api/cron/sms-reminders`.
+
+Required environment variables:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `CRON_SECRET` (recommended when invoking the cron endpoint manually)
+- `AT_API_KEY` (optional; without this, SMS dispatch runs in simulation mode)
+
+Apply database changes before enabling reminders:
+
+```sql
+\i update_sms_reminders_schema.sql
+```
+
 ## 📱 Usage Guide
 
 ### Dashboard

@@ -1,24 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase-server'
 
-const isGeminiEnabled = !!process.env.GEMINI_API_KEY
-const apiKey = isGeminiEnabled ? process.env.GEMINI_API_KEY : process.env.OPENAI_API_KEY
+console.log('🏗️ Wakili API Boot:', {
+  hasGemini: !!process.env.GEMINI_API_KEY,
+  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL
+})
 
-const openai = new OpenAI({
-  apiKey: apiKey || '',
-  baseURL: isGeminiEnabled ? "https://generativelanguage.googleapis.com/v1beta/openai/" : undefined
+const apiKey = process.env.GEMINI_API_KEY
+
+console.log('🤖 Wakili AI Engine Sync:', {
+  provider: apiKey ? 'GEMINI' : 'NONE',
+  keyDetected: !!apiKey
 })
 
 export async function POST(req: NextRequest) {
   try {
-    // Check authentication
+    // Check authentication with enhanced verification
     const supabase = await createClient()
-    const { data: { user }, error } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    if (error || !user) {
+    if (authError || !user) {
+      console.warn('🛡️ Wakili AI Auth Failure:', {
+        msg: authError?.message,
+        status: authError?.status,
+        code: authError?.name,
+        hasCookies: !!req.cookies.get('sb-dtupozscllrkhtsfskip-auth-token'), // Check for Supabase session cookie
+        allCookies: req.cookies.getAll().map(c => c.name)
+      })
       return NextResponse.json(
-        { error: 'Unauthorized: Institutional session required' },
+        {
+          error: 'Unauthorized: Institutional session required',
+          detail: authError?.message || 'No active institutional session found in vault. Please Sign Out and Sign In again to refresh your credentials.',
+          code: 'AUTH_SESSION_MISSING'
+        },
         { status: 401 }
       )
     }
@@ -27,7 +41,7 @@ export async function POST(req: NextRequest) {
 
     if (!apiKey) {
       return NextResponse.json(
-        { error: 'AI Protocol Error: Neither Gemini nor OpenAI keys are configured. Please check your institutional vault (.env).' },
+        { error: 'AI Protocol Error: Gemini key is not configured. Please check your institutional vault (.env).' },
         { status: 500 }
       )
     }
@@ -158,10 +172,28 @@ You have complete historical and current knowledge of:
 * **Accuracy:** Prioritize factual correctness over conversational flow. If a user's premise is legally incorrect (e.g., "How to evade tax"), correct them immediately with the relevant legal citation.
 
 **TONE & FORMAT:**
-* Be concise and use bullet points for mobile readability.
+* Output MUST be plain text only. Do NOT use Markdown symbols (no **, *, #, -, backticks).
+* Use this exact structure for every answer:
+  Summary:
+  [1-2 short sentences]
+
+  Legal Basis:
+  1. [Act + Section + one-line meaning]
+  2. [Act + Section + one-line meaning]
+
+  Practical Impact:
+  1. [What the user must do]
+  2. [Deadline/penalty if relevant]
+
+  Figures:
+  1. [Amount/rate]
+  2. [Amount/rate]
+
+  Disclaimer:
+  Note: This is for information only. For court cases, please consult a licensed Advocate.
+* Keep each line short and scannable for mobile.
 * Be firm on "Red Lines" (things that cause fines/lawsuits).
-* Use practical Kenyan examples (e.g., "Mama Njeri's Salon").
-* Always end complex legal advice with the mandatory disclaimer.
+* Use practical Kenyan examples when useful (e.g., "Mama Njeri's Salon").
 * Format numbers clearly: "KES 17,000" not "17000 KES".
 
 **EXAMPLE RESPONSES:**
@@ -197,27 +229,81 @@ If you deduct it arbitrarily, it is illegal.
 
 Note: This is for information only. For court cases, please consult a licensed Advocate."`
 
-    const response = await openai.chat.completions.create({
-      model: isGeminiEnabled ? 'gemini-2.0-flash' : 'gpt-4o',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...messages,
-      ],
-      temperature: 0, // CRITICAL: Zero temperature for deterministic responses
-      max_tokens: 1000,
+    console.log('📬 Wakili Handshake Payload:', {
+      model: 'gemini-flash-latest',
+      messageCount: messages?.length,
+      hasKey: !!apiKey
     })
 
-    const assistantMessage = response.choices[0]?.message?.content || 'I apologize, but I could not generate a response.'
+    type GeminiResponse = {
+      candidates?: Array<{
+        content?: {
+          parts?: Array<{ text?: string }>
+        }
+      }>
+      usageMetadata?: Record<string, unknown>
+    }
+
+    const geminiPayload = {
+      systemInstruction: {
+        parts: [{ text: systemPrompt }]
+      },
+      contents: (messages || []).map((m: { role?: string; content?: string }) => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content || '' }]
+      })),
+      generationConfig: {
+        temperature: 0,
+        maxOutputTokens: 1500
+      }
+    }
+
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(geminiPayload),
+      }
+    )
+
+    if (!geminiRes.ok) {
+      const errBody = await geminiRes.text()
+      return NextResponse.json(
+        { error: `Gemini request failed: ${errBody}` },
+        { status: geminiRes.status }
+      )
+    }
+
+    const response = (await geminiRes.json()) as GeminiResponse
+    const assistantMessage =
+      response.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('\n').trim() ||
+      'I apologize, but I could not generate a response.'
 
     return NextResponse.json({
       message: assistantMessage,
-      usage: response.usage,
+      usage: response.usageMetadata,
     })
-  } catch (error: any) {
-    console.error('Wakili AI Error:', error)
+  } catch (error: unknown) {
+    const err = error as { name?: string; status?: number; message?: string; stack?: string }
+    console.error('❌ Wakili AI Error Root:', {
+      name: err?.name,
+      status: err?.status,
+      message: err?.message,
+      stack: err?.stack,
+      raw: error
+    })
+
+    // Extract a clean error message
+    const message = err?.message || 'Failed to process chat request'
+    const status = err?.status || 500
+
     return NextResponse.json(
-      { error: error.message || 'Failed to process chat request' },
-      { status: 500 }
+      {
+        error: message,
+        detail: `Protocol Error [${status}]: ${err?.name || 'Unknown'}`
+      },
+      { status: status }
     )
   }
 }

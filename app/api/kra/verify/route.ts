@@ -5,7 +5,6 @@ export async function POST(req: NextRequest) {
     try {
         const supabase = await createClient()
         const { data: { user }, error: authError } = await supabase.auth.getUser()
-
         if (authError || !user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
@@ -129,7 +128,8 @@ export async function POST(req: NextRequest) {
             auditId: `STAT-${Math.random().toString(36).substring(2, 9).toUpperCase()}`
         })
 
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'KRA verification protocol failure'
+        return NextResponse.json({ error: message }, { status: 500 })
     }
 }

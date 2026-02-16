@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
-import Tesseract from 'tesseract.js'
 import { createClient } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase-admin'
+import { canAccessFeature } from '@/lib/entitlements'
 
 interface ReceiptData {
     merchantName: string | null
@@ -17,6 +17,26 @@ interface ReceiptData {
     auditHash: string
 }
 
+interface ExtractedReceiptData {
+    merchantName?: string | null
+    kraPin?: string | null
+    totalAmount?: number | null
+    date?: string | null
+    items?: string[]
+    category?: string | null
+    etimsSignature?: string | null
+}
+
+interface GeminiResponse {
+    candidates?: Array<{
+        content?: {
+            parts?: Array<{
+                text?: string
+            }>
+        }
+    }>
+}
+
 export async function POST(req: NextRequest) {
     try {
         // Authenticate User
@@ -30,6 +50,41 @@ export async function POST(req: NextRequest) {
             )
         }
 
+        // Enforce plan/credit access server-side.
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('subscription_plan, subscription_end_date, role')
+            .eq('id', user.id)
+            .maybeSingle()
+
+        const isSuperAdmin = profile?.role === 'super-admin'
+        const hasPlanAccess = isSuperAdmin || canAccessFeature(profile?.subscription_plan || null, 'receipts', profile?.subscription_end_date)
+        if (!hasPlanAccess) {
+            const admin = createAdminClient()
+            const creditRow = await admin
+                .from('feature_credits')
+                .select('id,credit_balance')
+                .eq('user_id', user.id)
+                .eq('feature', 'scan')
+                .maybeSingle()
+
+            const balance = Number(creditRow.data?.credit_balance || 0)
+            if (!creditRow.error && balance > 0) {
+                await admin
+                    .from('feature_credits')
+                    .update({
+                        credit_balance: balance - 1,
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq('id', creditRow.data!.id)
+            } else {
+                return NextResponse.json(
+                    { error: 'Tier Restricted: Tax Lens requires Micro-Entity+ plan or Scan credit.' },
+                    { status: 402 }
+                )
+            }
+        }
+
         const formData = await req.formData()
         const imageFile = formData.get('image') as File
 
@@ -41,11 +96,10 @@ export async function POST(req: NextRequest) {
         }
 
         const isGeminiEnabled = !!process.env.GEMINI_API_KEY
-        const isOpenAIEnabled = !!process.env.OPENAI_API_KEY
 
-        if (!isGeminiEnabled && !isOpenAIEnabled) {
+        if (!isGeminiEnabled) {
             return NextResponse.json(
-                { error: 'AI Protocol Error: No active AI engine configured. Please check your institutional vault (.env).' },
+                { error: 'AI Protocol Error: Gemini engine not configured. Please check your institutional vault (.env).' },
                 { status: 500 }
             )
         }
@@ -54,77 +108,63 @@ export async function POST(req: NextRequest) {
         const buffer = Buffer.from(arrayBuffer)
         const base64Image = buffer.toString('base64')
 
-        let extractedData: any = {}
+        let extractedData: ExtractedReceiptData = {}
         let category = 'Other'
         let rawText = ''
 
-        if (isGeminiEnabled) {
-            // ============================================================================
-            // GEMINI 1.5 FLASH: END-TO-END VISION EXTRACTION (FREE TIER)
-            // ============================================================================
-            console.log('Utilizing Gemini Statutory Vision Engine...')
+        // ============================================================================
+        // GEMINI FLASH: END-TO-END VISION EXTRACTION
+        // ============================================================================
+        console.log('Utilizing Gemini Statutory Vision Engine...')
 
-            const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [
-                            {
-                                text: `Extract data from this Kenyan receipt. Respond ONLY with valid JSON.
+        const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [
+                        {
+                            text: `Analyze this Kenyan statutory document (receipt/invoice).
+                                
+                                **Institutional Extraction Rules:**
+                                1. merchantName: Look for the institutional header/logo text.
+                                2. kraPin: Must be 11 characters, starting with P or A (e.g., P051234567X).
+                                3. totalAmount: Look for 'TOTAL', 'GROSS', or 'TOTAL KES'.
+                                4. date: YYYY-MM-DD.
+                                5. items: Array of line items.
+                                6. etimsSignature: Search for CUSN, CU Serial Number, Invoice Number, or the long VSCU hash usually found at the bottom.
+                                7. category: ONE of: Transport, Office Supplies, Utilities, Professional Services, Equipment, Marketing, Other.
+
+                                Respond ONLY with valid JSON:
                                 {
                                   "merchantName": "string",
-                                  "kraPin": "string (format P05... or A00...)",
+                                  "kraPin": "string",
                                   "totalAmount": number,
-                                  "date": "YYYY-MM-DD",
-                                  "items": ["item1", "item2"],
-                                  "etimsSignature": "string (Look for CUSN, Invoice Number, or QR data)",
-                                  "category": "ONE of: Transport, Office Supplies, Utilities, Professional Services, Equipment, Marketing, Other"
+                                  "date": "string",
+                                  "items": ["string"],
+                                  "etimsSignature": "string",
+                                  "category": "string"
                                 }`
-                            },
-                            {
-                                inline_data: {
-                                    mime_type: imageFile.type,
-                                    data: base64Image
-                                }
+                        },
+                        {
+                            inline_data: {
+                                mime_type: imageFile.type,
+                                data: base64Image
                             }
-                        ]
-                    }],
-                    generationConfig: {
-                        response_mime_type: "application/json"
-                    }
-                })
-            })
-
-            const result = await geminiResponse.json()
-            const contentText = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
-            extractedData = JSON.parse(contentText)
-            category = extractedData.category || 'Other'
-            rawText = `[Gemini Vision Extraction Successful]`
-
-        } else {
-            // ============================================================================
-            // LEGACY: TESSERACT + OPENAI FALLBACK
-            // ============================================================================
-            console.log('Falling back to Legacy Tesseract OCR...')
-            const { data: { text } } = await Tesseract.recognize(buffer, 'eng')
-            rawText = text
-
-            const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-            const extractionResponse = await openai.chat.completions.create({
-                model: 'gpt-4o',
-                messages: [{
-                    role: 'system',
-                    content: 'Extract receipt data. Respond with JSON only.'
-                }, {
-                    role: 'user',
-                    content: text
+                        }
+                    ]
                 }],
-                response_format: { type: 'json_object' }
+                generationConfig: {
+                    response_mime_type: "application/json"
+                }
             })
+        })
 
-            extractedData = JSON.parse(extractionResponse.choices[0]?.message?.content || '{}')
-        }
+        const result = await geminiResponse.json() as GeminiResponse
+        const contentText = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
+        extractedData = JSON.parse(contentText) as ExtractedReceiptData
+        category = extractedData.category || 'Other'
+        rawText = `[Gemini Vision Extraction Successful]`
 
         // Statutory Verification Logic
         const kraPinPattern = /^[AP][0-9]{9}[A-Z]$/i
@@ -144,8 +184,12 @@ export async function POST(req: NextRequest) {
         const isDeductible = verificationStatus === 'verified'
 
         const receiptData: ReceiptData = {
-            ...extractedData,
+            merchantName: extractedData.merchantName ?? null,
             kraPin: pin || null,
+            totalAmount: extractedData.totalAmount ?? null,
+            date: extractedData.date ?? null,
+            items: extractedData.items ?? [],
+            etimsSignature: extractedData.etimsSignature ?? null,
             isDeductible,
             category: category || extractedData.category || 'Other',
             rawText,
@@ -158,10 +202,11 @@ export async function POST(req: NextRequest) {
             data: receiptData
         })
 
-    } catch (error: any) {
-        console.error('Tax Lens Statutory Error:', error)
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Failed to process statutory asset'
+        console.error('Tax Lens Statutory Error:', message)
         return NextResponse.json(
-            { error: error.message || 'Failed to process statutory asset' },
+            { error: message },
             { status: 500 }
         )
     }

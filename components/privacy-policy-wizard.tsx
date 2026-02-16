@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
 import {
     Shield,
     Download,
@@ -20,12 +19,13 @@ import {
 } from "lucide-react"
 import { generatePrivacyPolicy } from "@/lib/privacy-policy-generator"
 import { downloadAsWord } from "@/lib/download-helpers"
-import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/auth-context"
+import { useInstitutionalUI } from "@/contexts/ui-context"
 import DocumentPreviewModal from "@/components/document-preview-modal"
 
 export default function PrivacyPolicyWizard() {
     const { user, profile } = useAuth()
+    const { showAlert } = useInstitutionalUI()
     const [formData, setFormData] = useState({
         companyName: profile?.business_name || "",
         email: user?.email || "",
@@ -38,7 +38,6 @@ export default function PrivacyPolicyWizard() {
     const [companyLogo, setCompanyLogo] = useState<string | null>(null)
     const [generatedPolicy, setGeneratedPolicy] = useState("")
     const [isGenerating, setIsGenerating] = useState(false)
-    const [isSaving, setIsSaving] = useState(false)
     const [isDownloadingPDF, setIsDownloadingPDF] = useState(false)
     const [isPreviewOpen, setIsPreviewOpen] = useState(false)
 
@@ -65,42 +64,45 @@ export default function PrivacyPolicyWizard() {
         if (!formData.companyName) return
 
         setIsGenerating(true)
-
-        // Step 1: Generate the policy text
-        const policy = generatePrivacyPolicy({
-            companyName: formData.companyName,
-            collectsPhoneNumbers: formData.collectsPhoneNumbers,
-            hasCCTV: formData.hasCCTV,
-            email: formData.email,
-            phone: formData.phone,
-            address: formData.address,
-        })
-
-        setGeneratedPolicy(policy)
-        setIsGenerating(false)
-        setIsPreviewOpen(true) // Auto-Preview Governance Handshake
-
-        // Step 2: Save to Supabase if user is logged in
-        if (user) {
-            setIsSaving(true)
-            try {
-                const { error } = await supabase.from('privacy_policies').insert([
-                    {
-                        user_id: user.id,
-                        company_name: formData.companyName,
-                        collects_phone: formData.collectsPhoneNumbers,
-                        uses_cctv: formData.hasCCTV,
-                        policy_content: policy
-                    }
-                ])
-
-                if (error) throw error
-                console.log("✅ Privacy Policy archived to governance vault")
-            } catch (error: any) {
-                console.error("❌ Error archiving policy:", error.message)
-            } finally {
-                setIsSaving(false)
+        try {
+            const res = await fetch('/api/privacy/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    companyName: formData.companyName,
+                    email: formData.email,
+                    phone: formData.phone,
+                    address: formData.address,
+                    collectsPhoneNumbers: formData.collectsPhoneNumbers,
+                    hasCCTV: formData.hasCCTV,
+                }),
+            })
+            const payload = await res.json().catch(() => ({}))
+            if (!res.ok) {
+                showAlert('Generation Error', payload.error || 'Failed to generate privacy policy.')
+                return
             }
+
+            const policy = String(payload.policy || '')
+            if (!policy) {
+                showAlert('Generation Error', 'Privacy policy generation returned empty output.')
+                return
+            }
+            setGeneratedPolicy(policy)
+
+            // Step 3: Archive to Institutional Vault
+            if (user) {
+                await import('@/lib/vault').then(m => m.archiveToVault({
+                    user_id: user.id,
+                    document_type: 'policy',
+                    document_name: `Privacy Policy: ${formData.companyName}`,
+                    content: policy
+                }))
+            }
+
+            setIsPreviewOpen(true)
+        } finally {
+            setIsGenerating(false)
         }
     }
 
@@ -110,7 +112,7 @@ export default function PrivacyPolicyWizard() {
         try {
             const filename = `Privacy_Policy_${formData.companyName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`
             await downloadAsWord(generatedPolicy, filename)
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Download error:", error)
         }
     }
@@ -123,7 +125,7 @@ export default function PrivacyPolicyWizard() {
             const { downloadAsPDF } = await import('@/lib/download-helpers')
             const filename = `Privacy_Policy_${formData.companyName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`
             await downloadAsPDF(generatedPolicy, filename)
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("PDF Download error:", error)
         } finally {
             setIsDownloadingPDF(false)
@@ -204,6 +206,7 @@ export default function PrivacyPolicyWizard() {
                                     <div className="flex items-center gap-4">
                                         {companyLogo ? (
                                             <div className="h-14 w-14 rounded-2xl border border-navy-100 bg-white overflow-hidden relative group">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src={companyLogo} alt="Logo" className="w-full h-full object-contain" />
                                                 <button onClick={() => setCompanyLogo(null)} className="absolute inset-0 bg-rose-600/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-bold">Remove</button>
                                             </div>
@@ -352,7 +355,7 @@ export default function PrivacyPolicyWizard() {
                         <div className="relative z-10 space-y-4">
                             <h4 className="text-xs font-black uppercase tracking-widest text-blue-400">Institutional Privacy Stack</h4>
                             <p className="text-xs text-navy-300 font-medium leading-relaxed">
-                                Our engine implements the mandatory "Data Subject Rights" framework required under Section 25 of the DPA 2019.
+                                Our engine implements the mandatory &quot;Data Subject Rights&quot; framework required under Section 25 of the DPA 2019.
                             </p>
                             <div className="grid grid-cols-2 gap-3 pt-2">
                                 <div className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-center">Right to Erasure</div>
@@ -375,14 +378,17 @@ export default function PrivacyPolicyWizard() {
                         </div>
                     ) : (
                         <div className="space-y-6 animate-slide-in">
-                            <Card className="border-none shadow-[0_40px_80px_rgba(0,0,0,0.15)] bg-white rounded-[40px] overflow-hidden relative">
+                            <Card className="border-none shadow-[0_40px_80px_rgba(0,0,0,0.15)] bg-white rounded-[40px] overflow-hidden relative max-h-[80vh]">
                                 <div className="absolute top-0 right-0 p-12 pointer-events-none opacity-[0.05]">
                                     <Shield className="h-64 w-64 text-navy-900" />
                                 </div>
                                 <CardHeader className="border-b border-navy-50 px-12 py-10 flex flex-row items-center justify-between">
                                     <div className="flex flex-col items-center gap-4">
                                         {companyLogo && (
-                                            <img src={companyLogo} alt="Company Logo" className="h-16 w-auto mb-4" />
+                                            <>
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src={companyLogo} alt="Company Logo" className="h-16 w-auto mb-4" />
+                                            </>
                                         )}
                                         <div className="text-center">
                                             <CardTitle className="text-navy-950 font-serif italic text-3xl">Privacy & Data Governance</CardTitle>
@@ -402,8 +408,8 @@ export default function PrivacyPolicyWizard() {
                                         </Button>
                                     </div>
                                 </CardHeader>
-                                <CardContent className="px-16 py-16">
-                                    <div className="prose prose-sm max-w-none text-navy-900 leading-loose font-serif whitespace-pre-line text-base max-h-[600px] overflow-y-auto custom-scrollbar pr-8">
+                                <CardContent className="px-6 py-8 md:px-16 md:py-16">
+                                    <div className="prose prose-sm max-w-none text-navy-900 leading-loose font-serif whitespace-pre-line text-base max-h-[65vh] min-h-[320px] overflow-y-auto custom-scrollbar-premium pr-4 md:pr-8 touch-pan-y overscroll-contain">
                                         {generatedPolicy}
                                     </div>
                                 </CardContent>
@@ -412,7 +418,7 @@ export default function PrivacyPolicyWizard() {
                                         <div className="px-3 py-1.5 rounded-full bg-navy-900 text-white text-[9px] font-black uppercase tracking-widest">ODPC v2026.1</div>
                                         <p className="text-[10px] font-black text-navy-400 uppercase tracking-widest">Kanya Statutory Engine Verified</p>
                                     </div>
-                                    <p className="text-[10px] font-bold text-navy-300">© 2026 {formData.companyName || 'ENTITY'} • Dynamic Governance Locked</p>
+                                    <p className="text-[10px] font-bold text-navy-300">2026 {formData.companyName || 'ENTITY'} Dynamic Governance Locked</p>
                                 </div>
                             </Card>
                         </div>
@@ -433,4 +439,3 @@ export default function PrivacyPolicyWizard() {
         </div>
     )
 }
-

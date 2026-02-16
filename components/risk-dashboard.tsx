@@ -3,11 +3,13 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertTriangle, CheckCircle2, Shield, Activity, Lock, Users, Receipt } from "lucide-react"
+import { getPlanPrivileges } from "@/lib/entitlements"
 import ComplianceBadges from "@/components/compliance-badges"
 import KRAPINChecker from "@/components/kra-pin-checker"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/auth-context"
 import { useInstitutionalUI } from "@/contexts/ui-context"
+import { Button } from "@/components/ui/button"
 
 import DocumentPreviewModal from "@/components/document-preview-modal"
 import { downloadAsWord } from "@/lib/download-helpers"
@@ -19,20 +21,35 @@ interface ComplianceItem {
     icon: React.ReactNode
 }
 
-export default function RiskDashboard() {
+interface ArchiveResponse {
+    contracts: Array<{ id: string; employee_name: string; job_title: string; created_at: string }>
+    policies: Array<{ id: string; company_name: string; created_at: string }>
+    payroll: Array<{ id: string; gross_salary: number; net_pay: number; created_at: string }>
+    payments: Array<{ id: string; amount: number; plan: string; status: string; mpesa_receipt: string | null; created_at: string }>
+}
+
+export default function RiskDashboard({ onOpenCompliance }: { onOpenCompliance?: () => void }) {
     const { user, profile } = useAuth()
     const { showToast, showAlert } = useInstitutionalUI()
-    const [loading, setLoading] = useState(true)
     const [previewDoc, setPreviewDoc] = useState<{ isOpen: boolean; title: string; content: string; type: 'contract' | 'policy' }>({
         isOpen: false,
         title: '',
         content: '',
         type: 'contract'
     })
+    const [showArchiveModal, setShowArchiveModal] = useState(false)
+    const [archiveLoading, setArchiveLoading] = useState(false)
+    const [archiveData, setArchiveData] = useState<ArchiveResponse>({
+        contracts: [],
+        policies: [],
+        payroll: [],
+        payments: [],
+    })
 
     const isEnterprise = profile?.subscription_plan === 'enterprise' || profile?.role === 'super-admin'
     const isSME = profile?.subscription_plan === 'sme-power' || isEnterprise || profile?.role === 'super-admin'
-    const isSuperAdmin = profile?.role === 'super-admin' || user?.email?.toLowerCase() === 'geoffominde8@gmail.com' // Authorized Administrator Override
+    const isSuperAdmin = profile?.role === 'super-admin'
+    const planPrivileges = getPlanPrivileges(profile?.subscription_plan)
 
     const [complianceItems, setComplianceItems] = useState<ComplianceItem[]>([
         { id: "sha", label: "SHA/SHIF Registration", completed: false, icon: <Shield className="h-4 w-4" /> },
@@ -50,25 +67,21 @@ export default function RiskDashboard() {
             if (!user) return
 
             try {
-                // Check Contracts
                 const { count: contractCount } = await supabase
                     .from('contracts')
                     .select('*', { count: 'exact', head: true })
                     .eq('user_id', user.id)
 
-                // Check Payroll
                 const { count: payrollCount } = await supabase
                     .from('payroll_calculations')
                     .select('*', { count: 'exact', head: true })
                     .eq('user_id', user.id)
 
-                // Check Policies
                 const { count: policyCount } = await supabase
                     .from('privacy_policies')
                     .select('*', { count: 'exact', head: true })
                     .eq('user_id', user.id)
 
-                // Update items
                 setComplianceItems(prev => prev.map(item => {
                     if (item.id === 'contracts') return { ...item, completed: (contractCount || 0) > 0 }
                     if (item.id === 'housing' || item.id === 'sha') return { ...item, completed: (payrollCount || 0) > 0 }
@@ -77,8 +90,6 @@ export default function RiskDashboard() {
                 }))
             } catch (error) {
                 console.error("Error fetching dashboard data:", error)
-            } finally {
-                setLoading(false)
             }
         }
 
@@ -95,39 +106,8 @@ export default function RiskDashboard() {
 
     const completedCount = complianceItems.filter(item => item.completed).length
     const totalCount = complianceItems.length
-
-    // Hardening: Ensure Super Admin always 100% even if data is missing
     const healthScore = isSuperAdmin ? 100 : Math.round((completedCount / totalCount) * 100)
-
     const isAtRisk = healthScore < 75
-
-    const handlePreviewFromVault = async (id: string, type: 'contract' | 'policy') => {
-        if (!user) return
-
-        try {
-            const { data, error } = await supabase
-                .from(type === 'contract' ? 'contracts' : 'privacy_policies')
-                .select('*')
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .single()
-
-            if (error || !data) {
-                showAlert('Vault Error', 'No archived instruments found. Please generate a document first.')
-                return
-            }
-
-            setPreviewDoc({
-                isOpen: true,
-                title: type === 'contract' ? 'Institutional Employment Contract' : 'Privacy & Data Governance Policy',
-                content: type === 'contract' ? data.contract_content : data.policy_content,
-                type
-            })
-        } catch (err) {
-            console.error('Handshake error:', err)
-        }
-    }
 
     return (
         <div className="space-y-8 animate-fade-in">
@@ -140,6 +120,17 @@ export default function RiskDashboard() {
                     <p className="text-navy-600 font-medium">
                         {isSuperAdmin ? 'Full Statutory Override Active' : 'Monitoring your business compliance in real-time'}
                     </p>
+                    <div className="flex gap-3 mt-2 flex-wrap">
+                        <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${planPrivileges.privateVaultSubnet ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            Vault Subnet
+                        </span>
+                        <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${planPrivileges.includesTaxLens ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            Tax Lens
+                        </span>
+                        <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${planPrivileges.multiEntityManagement ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            Multi-Entity
+                        </span>
+                    </div>
                 </div>
                 <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-navy-100 shadow-sm">
                     <Activity className="h-4 w-4 text-emerald-500 animate-pulse" />
@@ -148,61 +139,83 @@ export default function RiskDashboard() {
             </div>
 
             {/* Health Score Card */}
-            <Card className="glass-card border-none overflow-hidden relative">
-                <div className={`absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl opacity-10 -mr-20 -mt-20 ${isAtRisk ? 'bg-rose-500' : 'bg-emerald-500'}`} />
-                <CardHeader>
-                    <div className="flex items-center justify-between relative z-10">
-                        <div>
-                            <CardTitle className="text-xl font-bold text-navy-900">Compliance Health Score</CardTitle>
-                            <CardDescription className="font-medium text-navy-500">
-                                Global status across 2026 Kenyan statutes
-                            </CardDescription>
-                        </div>
-                        <div className={`p-4 rounded-2xl ${isAtRisk ? 'bg-rose-50/50 text-rose-600' : 'bg-emerald-50/50 text-emerald-600'}`}>
-                            <Shield className="h-8 w-8" />
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent className="relative z-10">
-                    <div className="flex items-baseline gap-4">
-                        <div className={`text-7xl font-black tracking-tighter ${isAtRisk ? 'text-rose-600' : 'text-emerald-600'}`}>
-                            {healthScore}%
-                        </div>
-                        <div className="space-y-1">
-                            <p className="text-sm font-bold text-navy-800 uppercase tracking-wide">
-                                {isSuperAdmin ? 'Institutional Safe' : isAtRisk ? 'Attention Required' : 'Institutional Safety'}
-                            </p>
-                            <p className="text-xs text-navy-400 font-medium font-mono" suppressHydrationWarning>
-                                Audit ID: {auditId || "STABILIZING..."}
+            <Card className="glass-card border-none overflow-hidden relative shadow-2xl bg-white/50 backdrop-blur-xl">
+                <div className={`absolute top-0 right-0 w-96 h-96 rounded-full blur-[100px] opacity-10 -mr-20 -mt-20 ${isAtRisk ? 'bg-rose-500' : 'bg-emerald-500'}`} />
+                <CardContent className="p-8 md:p-12 relative z-10">
+                    <div className="grid md:grid-cols-2 gap-12 items-center">
+                        {/* Score Section */}
+                        <div className="text-center md:text-left space-y-2">
+                            <div className="flex items-center justify-center md:justify-start gap-4 mb-2">
+                                <div className={`p-3 rounded-2xl ${isAtRisk ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                    <Shield className="h-8 w-8" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-navy-900">Compliance Health</h3>
+                                    <p className="text-xs text-navy-500 font-medium">Global Status Check</p>
+                                </div>
+                            </div>
+                            <div className="flex items-baseline justify-center md:justify-start gap-2">
+                                <span className={`text-8xl font-black tracking-tighter ${isAtRisk ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                    {healthScore}<span className="text-4xl">%</span>
+                                </span>
+                            </div>
+                            <p className={`text-sm font-black uppercase tracking-widest ${isAtRisk ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                {isSuperAdmin ? 'Institutional Safe' : isAtRisk ? 'Attention Required' : 'statutory Compliant'}
                             </p>
                         </div>
-                    </div>
 
-                    {/* Progress Bar */}
-                    <div className="mt-8 h-4 w-full overflow-hidden rounded-full bg-navy-50 border border-navy-100 shadow-inner">
-                        <div
-                            className={`h-full transition-all duration-1000 ease-out shadow-lg ${isAtRisk ? 'bg-alert-gradient' : 'bg-success-gradient'}`}
-                            style={{ width: `${healthScore}%` }}
-                        />
+                        {/* Action & Progress Section */}
+                        <div className="space-y-8">
+                            <div className="space-y-3">
+                                <div className="flex justify-between text-xs font-bold text-navy-600 uppercase tracking-wide">
+                                    <span>Audit Progress</span>
+                                    <span>{healthScore}/100</span>
+                                </div>
+                                <div className="h-4 w-full overflow-hidden rounded-full bg-navy-50 border border-navy-100/50">
+                                    <div
+                                        className={`h-full transition-all duration-1000 ease-out shadow-lg ${isAtRisk ? 'bg-alert-gradient' : 'bg-success-gradient'}`}
+                                        style={{ width: `${healthScore}%` }}
+                                    />
+                                </div>
+                                <p className="text-[10px] text-navy-400 font-mono text-right" suppressHydrationWarning>
+                                    REF: {auditId || "SYNCING..."}
+                                </p>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row gap-4 justify-end">
+                                <Button
+                                    variant="outline"
+                                    onClick={onOpenCompliance}
+                                    className="h-14 border-navy-100 text-navy-600 font-bold uppercase tracking-wider text-xs hover:bg-navy-50"
+                                >
+                                    View Report
+                                </Button>
+                                <Button
+                                    onClick={onOpenCompliance}
+                                    className="h-14 px-8 bg-navy-950 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-xl hover:scale-105 active:scale-95 transition-all"
+                                >
+                                    Execute Protocol Audit
+                                </Button>
+                            </div>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
 
-            <div className="grid lg:grid-cols-3 gap-8">
-                {/* Compliance Checklist - Left 2 Columns */}
-                <div className="lg:col-span-2 space-y-6">
+            <div className="grid gap-6 lg:grid-cols-[1.35fr,0.65fr]">
+                <div className="space-y-6">
                     <Card className="border-none shadow-xl bg-white">
                         <CardHeader className="border-b border-navy-50">
                             <CardTitle className="text-lg">Critical Compliance Items</CardTitle>
                             <CardDescription className="font-medium">Mandatory tasks to reach 100% safety</CardDescription>
                         </CardHeader>
                         <CardContent className="p-6">
-                            <div className="grid sm:grid-cols-2 gap-4">
+                            <div className="grid sm:grid-cols-2 gap-6">
                                 {complianceItems.map((item) => (
                                     <button
                                         key={item.id}
                                         onClick={() => toggleItem(item.id)}
-                                        className={`flex items-center gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 group ${item.completed
+                                        className={`flex items-center gap-4 rounded-2xl border-2 p-4 text-left transition-all duration-300 group min-h-[100px] ${item.completed
                                             ? 'border-emerald-100 bg-emerald-50/50'
                                             : 'border-navy-50 bg-white hover:border-navy-200 hover:shadow-md active:scale-95'
                                             }`}
@@ -233,146 +246,83 @@ export default function RiskDashboard() {
                         </CardContent>
                     </Card>
 
-                    {/* Risk Alert / Success */}
+                    <Card className="bg-navy-950 text-white border-none shadow-xl relative overflow-hidden group min-h-[160px]">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500 rounded-full blur-[60px] opacity-20 -mr-10 -mt-10 animate-pulse" />
+                        <CardHeader className="relative z-10 pb-2">
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center text-amber-500 border border-white/5">
+                                    <Receipt className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-sm font-black uppercase tracking-tight text-white">Fuel Levy Audit</CardTitle>
+                                    <CardDescription className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">eTIMS Mandate Active</CardDescription>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="relative z-10 space-y-4">
+                            <p className="text-[11px] text-navy-200 leading-relaxed font-medium">
+                                <span className="text-white font-bold">New Regulation:</span> Petrol stations must now issue eTIMS receipts. Non-compliant fuel expenses are <span className="underline decoration-rose-500 decoration-2">non-deductible</span>.
+                            </p>
+                            <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
+                                <span className="text-[10px] font-bold text-navy-300 uppercase">Feb Cycle Coverage</span>
+                                <span className="text-lg font-black text-white">0%</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="space-y-6">
                     {isAtRisk ? (
-                        <Card className="bg-alert-gradient text-white border-none shadow-xl animate-pulse-slow">
+                        <Card className="bg-alert-gradient text-white border-none shadow-xl min-h-[160px]">
                             <CardContent className="p-6">
                                 <div className="flex items-start gap-4">
                                     <div className="bg-white/20 p-2 rounded-lg">
                                         <AlertTriangle className="h-6 w-6" />
                                     </div>
                                     <div>
-                                        <h4 className="font-black text-lg uppercase tracking-tight">Statutory Liability Risk</h4>
+                                        <h4 className="font-black text-sm uppercase tracking-tight">Statutory Liability Risk</h4>
                                         <p className="mt-1 text-sm text-rose-100 leading-relaxed">
-                                            Your business is currently exposed to potential KRA and ODPC audits. Complete the remaining items to lock in your "Protected" status for Q1 2026.
+                                            Your business is currently exposed to potential KRA and ODPC audits. Complete the remaining items to lock in your &quot;Protected&quot; status for Q1 2026.
                                         </p>
                                     </div>
                                 </div>
                             </CardContent>
                         </Card>
                     ) : (
-                        <Card className="bg-success-gradient text-white border-none shadow-xl">
+                        <Card className="bg-success-gradient text-white border-none shadow-xl min-h-[160px]">
                             <CardContent className="p-6">
                                 <div className="flex items-start gap-4">
                                     <div className="bg-white/20 p-2 rounded-lg">
                                         <CheckCircle2 className="h-6 w-6" />
                                     </div>
                                     <div>
-                                        <h4 className="font-black text-lg uppercase tracking-tight">Institutional Safety Locked</h4>
+                                        <h4 className="font-black text-sm uppercase tracking-tight">Institutional Safety Locked</h4>
                                         <p className="mt-1 text-sm text-emerald-100 leading-relaxed">
-                                            All critical compliance tasks are verified. Your 2026 status is healthy. We'll alert you if government regulations change.
+                                            All critical compliance tasks are verified. We&apos;ll alert you if government regulations change.
                                         </p>
                                     </div>
                                 </div>
                             </CardContent>
                         </Card>
                     )}
-                </div>
 
-                {/* PIN Validator - Right Column */}
-                <div className="space-y-6">
-                    <KRAPINChecker />
-                    <div className="p-6 bg-navy-950 rounded-3xl border border-navy-800 shadow-2xl relative overflow-hidden">
-                        <div className="relative z-10">
-                            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-2">ComplyKe Pro</p>
-                            <h3 className="text-xl font-bold text-white mb-2">Automated Filing</h3>
-                            <p className="text-xs text-navy-400 leading-relaxed mb-6">
-                                Connect your iTax account to automate your monthly PAYE and SHIF remittances.
-                            </p>
-                            <button
-                                onClick={() => {
-                                    if (isEnterprise) {
-                                        showToast('🚀 Beta enrollment requested! We will contact you soon.', 'info')
-                                    } else {
-                                        showAlert("Tier Restricted", "Automated iTax Filing is an Enterprise-grade feature. Please upgrade your protocol in the Pricing console.")
-                                    }
-                                }}
-                                className={`w-full py-3 rounded-xl font-bold text-sm transition-all shadow-lg ${isEnterprise ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-950/20' : 'bg-navy-800 text-navy-400 cursor-not-allowed opacity-50'}`}
-                            >
-                                {isEnterprise ? 'Enroll in Beta' : 'Upgrade to Unlock'}
-                            </button>
-                        </div>
-                        <Receipt className="absolute -right-4 -bottom-4 h-32 w-32 text-white/5" />
+                    <div className="space-y-6">
+                        <KRAPINChecker />
                     </div>
-
-                    {/* Cloud Vault Preview */}
-                    <Card className="border-none shadow-xl bg-white overflow-hidden">
-                        <CardHeader className="bg-navy-50 py-4 px-6">
-                            <div className="flex items-center gap-2">
-                                <Lock className="h-4 w-4 text-navy-900" />
-                                <CardTitle className="text-sm uppercase tracking-widest">Cloud Vault</CardTitle>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <div className="divide-y divide-navy-50">
-                                <div
-                                    onClick={() => handlePreviewFromVault('latest-contract', 'contract')}
-                                    className="p-4 hover:bg-navy-50/50 transition-colors cursor-pointer group"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                                            <Users className="h-4 w-4" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-xs font-bold text-navy-900 truncate">Employment Contract (Draft)</p>
-                                            <p className="text-[10px] text-navy-400">Ready for signing</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div
-                                    onClick={() => handlePreviewFromVault('latest-policy', 'policy')}
-                                    className="p-4 hover:bg-navy-50/50 transition-colors cursor-pointer group"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                                            <Lock className="h-4 w-4" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-xs font-bold text-navy-900 truncate">Privacy Policy Instrument</p>
-                                            <p className="text-[10px] text-navy-400">DPA 2019 Compliant</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="p-3 bg-navy-50/50">
-                                <button
-                                    onClick={() => {
-                                        if (!isSME) {
-                                            showAlert("Institutional Limit", "Cloud Vault archival history is available for SME Power and Enterprise protocols only.")
-                                        }
-                                    }}
-                                    className={`w-full py-2 text-[10px] font-black uppercase tracking-widest transition-colors ${isSME ? 'text-navy-900 hover:text-navy-600' : 'text-navy-300'}`}
-                                >
-                                    {isSME ? 'View Full Archive' : 'Upgrade to View History'}
-                                </button>
-                            </div>
-                        </CardContent>
-                    </Card>
                 </div>
             </div>
 
-            {/* Forensic Preview Modal */}
+            <div className="mt-8">
+                <ComplianceBadges />
+            </div>
+
             <DocumentPreviewModal
                 isOpen={previewDoc.isOpen}
                 onClose={() => setPreviewDoc(prev => ({ ...prev, isOpen: false }))}
                 title={previewDoc.title}
                 content={previewDoc.content}
                 type={previewDoc.type}
-                onDownloadWord={() => downloadAsWord(previewDoc.content, previewDoc.title.replace(/\s+/g, '_'))}
-                onDownloadPDF={async () => {
-                    const { downloadAsPDF } = await import('@/lib/download-helpers')
-                    await downloadAsPDF(previewDoc.content, previewDoc.title.replace(/\s+/g, '_'))
-                }}
             />
-
-            {/* Compliance Badges Footer */}
-            <div className="pt-8 border-t border-navy-100">
-                <div className="flex items-center gap-2 mb-6">
-                    <Shield className="h-5 w-5 text-navy-900" />
-                    <h3 className="text-xs uppercase font-black tracking-tighter text-navy-900">Your Trust Certifications</h3>
-                </div>
-                <ComplianceBadges />
-            </div>
         </div>
     )
 }

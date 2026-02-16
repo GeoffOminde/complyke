@@ -8,6 +8,31 @@ import { Button } from '@/components/ui/button'
 import { Shield, Mail, Lock, Building2, Chrome } from 'lucide-react'
 import { useInstitutionalUI } from '@/contexts/ui-context'
 
+function mapAuthErrorMessage(raw: string, mode: 'signin' | 'signup') {
+    const message = raw.toLowerCase()
+
+    if (message.includes('email rate limit exceeded')) {
+        if (mode === 'signup') {
+            return 'Signup is temporarily throttled due to too many email requests. Wait about 30-60 minutes, or ask an admin to create/confirm your account directly in Supabase Auth.'
+        }
+        return 'Email actions are temporarily throttled. Wait about 30-60 minutes before retrying password recovery or signup flows.'
+    }
+
+    if (message.includes('invalid login credentials')) {
+        return 'Invalid email or password. Confirm you are using the exact credentials for an active, confirmed account.'
+    }
+
+    if (message.includes('email not confirmed') || message.includes('not confirmed')) {
+        return 'Your email is not confirmed yet. Open your inbox and complete the confirmation link before signing in.'
+    }
+
+    if (message.includes('refresh token') || message.includes('invalid session')) {
+        return 'Your local session appears stale. Use "Purge Vault & Restart" below, then sign in again.'
+    }
+
+    return raw || 'Authentication failed. Please try again.'
+}
+
 export default function LoginPage() {
     const [isLogin, setIsLogin] = useState(true)
     const [email, setEmail] = useState('')
@@ -35,8 +60,9 @@ export default function LoginPage() {
                 await signUp(email, password, businessName)
                 showToast('✅ Account created! Check your email to verify your account.', 'success')
             }
-        } catch (error: any) {
-            setError(error.message || 'An error occurred')
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'An error occurred'
+            setError(mapAuthErrorMessage(message, isLogin ? 'signin' : 'signup'))
         } finally {
             setLoading(false)
         }
@@ -47,8 +73,9 @@ export default function LoginPage() {
         setError('')
         try {
             await signInWithGoogle()
-        } catch (error: any) {
-            setError(error.message || 'Google sign-in failed')
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Google sign-in failed'
+            setError(mapAuthErrorMessage(message, 'signin'))
             setLoading(false)
         }
     }
@@ -83,7 +110,7 @@ export default function LoginPage() {
                     <form onSubmit={handleSubmit} className="space-y-4">
                         {!isLogin && (
                             <div>
-                                <label className="block text-sm font-bold text-navy-900 mb-2 uppercase tracking-wide">
+                                <label htmlFor="signup-business-name" className="block text-sm font-bold text-navy-900 mb-2 uppercase tracking-wide">
                                     <Building2 className="inline h-4 w-4 mr-2" />
                                     Business Name
                                 </label>
@@ -101,7 +128,7 @@ export default function LoginPage() {
                         )}
 
                         <div>
-                            <label className="block text-sm font-bold text-navy-900 mb-2 uppercase tracking-wide">
+                            <label htmlFor={isLogin ? "signin-email" : "signup-email"} className="block text-sm font-bold text-navy-900 mb-2 uppercase tracking-wide">
                                 <Mail className="inline h-4 w-4 mr-2" />
                                 Email Address
                             </label>
@@ -118,7 +145,7 @@ export default function LoginPage() {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-bold text-navy-900 mb-2 uppercase tracking-wide">
+                            <label htmlFor={isLogin ? "signin-password" : "signup-password"} className="block text-sm font-bold text-navy-900 mb-2 uppercase tracking-wide">
                                 <Lock className="inline h-4 w-4 mr-2" />
                                 Password
                             </label>
@@ -177,6 +204,22 @@ export default function LoginPage() {
                         <Chrome className="mr-2 h-5 w-5" />
                         Google
                     </Button>
+
+                    {(error?.toLowerCase().includes('refresh token') || error?.toLowerCase().includes('invalid session')) && (
+                        <div className="pt-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    localStorage.clear();
+                                    sessionStorage.clear();
+                                    window.location.reload();
+                                }}
+                                className="w-full text-xs text-rose-500 hover:underline font-bold uppercase tracking-widest"
+                            >
+                                ⚠ Stale Session Detected: Purge Vault & Restart
+                            </button>
+                        </div>
+                    )}
 
                     <div className="text-center pt-4">
                         <button

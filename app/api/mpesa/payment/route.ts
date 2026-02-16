@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { initiateMpesaPayment, formatPhoneNumber, isValidKenyanPhone } from '@/lib/mpesa'
 import { createClient } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase-admin'
+import { auditLog } from '@/lib/audit-log'
 
 export async function POST(request: NextRequest) {
     try {
@@ -67,6 +69,56 @@ export async function POST(request: NextRequest) {
             `ComplyKe ${plan} Subscription`
         )
 
+        // Persist transaction handshake using checkout/merchant IDs so callback reconciliation is deterministic.
+        const admin = createAdminClient()
+
+        if (result.ResponseCode === '0') {
+            await auditLog({
+                event: 'payment.stk_initiated',
+                actorUserId: user.id,
+                metadata: {
+                    plan,
+                    amount: numAmount,
+                    checkoutRequestID: result.CheckoutRequestID,
+                    merchantRequestID: result.MerchantRequestID,
+                },
+            })
+
+            const extendedInsert = await admin.from('payments').insert({
+                user_id: user.id,
+                amount: numAmount,
+                plan,
+                phone_number: formattedPhone,
+                status: 'pending',
+                checkout_request_id: result.CheckoutRequestID,
+                merchant_request_id: result.MerchantRequestID,
+            })
+
+            if (extendedInsert.error) {
+                console.error('M-Pesa payment persistence failed:', extendedInsert.error.message)
+                await auditLog({
+                    event: 'payment.persistence_failed',
+                    level: 'error',
+                    actorUserId: user.id,
+                    metadata: {
+                        plan,
+                        amount: numAmount,
+                        checkoutRequestID: result.CheckoutRequestID,
+                        merchantRequestID: result.MerchantRequestID,
+                        error: extendedInsert.error.message,
+                    },
+                })
+                return NextResponse.json(
+                    {
+                        success: false,
+                        error: 'Payment tracking unavailable',
+                        message: 'Unable to securely link this STK request to your account. Confirm payments schema migration and retry.'
+                    },
+                    { status: 500 }
+                )
+            }
+        }
+
         // Check if STK push was successful
         if (result.ResponseCode === '0') {
             return NextResponse.json({
@@ -81,6 +133,17 @@ export async function POST(request: NextRequest) {
                 }
             })
         } else {
+            await auditLog({
+                event: 'payment.stk_rejected',
+                level: 'warn',
+                actorUserId: user.id,
+                metadata: {
+                    plan,
+                    amount: numAmount,
+                    responseCode: result.ResponseCode,
+                    responseDescription: result.ResponseDescription,
+                },
+            })
             return NextResponse.json(
                 {
                     success: false,
@@ -91,17 +154,28 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
             )
         }
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'An error occurred while processing your payment'
         console.error('M-Pesa payment error:', error)
+        await auditLog({
+            event: 'payment.stk_error',
+            level: 'error',
+            metadata: { message },
+        })
+        const isClientSideMpesaFailure =
+            /status code 4\d\d/i.test(message) ||
+            /token/i.test(message) ||
+            /credential/i.test(message) ||
+            /payment initiation failed/i.test(message)
 
         return NextResponse.json(
             {
                 success: false,
                 error: 'Payment initiation failed',
-                message: error.message || 'An error occurred while processing your payment. Please try again.',
-                details: process.env.NODE_ENV === 'development' ? error.toString() : undefined
+                message: message + '. Please try again.',
+                details: process.env.NODE_ENV === 'development' ? String(error) : undefined
             },
-            { status: 500 }
+            { status: isClientSideMpesaFailure ? 400 : 500 }
         )
     }
 }

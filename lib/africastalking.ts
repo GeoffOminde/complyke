@@ -47,8 +47,9 @@ export async function sendSMS(to: string, message: string) {
         const data = await response.json();
         console.log('✅ SMS Response:', data);
         return { success: true, data };
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Network connection to SMS gateway failed'
         console.error('❌ SMS Connection Error:', error);
-        return { success: false, error: error.message || 'Network connection to SMS gateway failed' };
+        return { success: false, error: message };
     }
 }

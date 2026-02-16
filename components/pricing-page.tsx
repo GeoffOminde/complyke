@@ -2,37 +2,49 @@
 
 import { useState } from "react"
 import {
-  Check,
   X,
   Zap,
   Building2,
   Rocket,
-  ShieldCheck,
   CreditCard,
   Smartphone,
-  HelpCircle,
   ArrowRight,
   BadgeCheck,
-  Globe,
-  Scale
+  Scale,
+  Shield,
+  type LucideIcon,
 } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useInstitutionalUI } from "@/contexts/ui-context"
-import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/auth-context"
+import { getPlanPrivileges } from "@/lib/entitlements"
+import type { PlanCode } from "@/lib/entitlements"
+
+type PricingPlan = {
+  name: string
+  price: string
+  description: string
+  icon: LucideIcon
+  color: string
+  features: string[]
+  limitations: string[]
+  cta: string
+  planCode?: PlanCode
+  popular?: boolean
+}
 
 export default function PricingPage() {
   const { user } = useAuth()
-  const { showToast, showConfirm, showPrompt, showAlert, unlockFeature } = useInstitutionalUI()
+  const { showToast, showConfirm, showPrompt, showAlert } = useInstitutionalUI()
   const [loading, setLoading] = useState(false)
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly")
 
   const plans = [
     {
-      name: "Trial Protocol",
+      name: "Institutional Trial",
       price: "0",
-      description: "Risk-free institutional evaluation",
+      description: "Risk-free statutory evaluation",
       icon: Zap,
       color: "emerald",
       features: [
@@ -46,11 +58,12 @@ export default function PricingPage() {
         "No archival persistence",
       ],
       cta: "Initiate Trial",
+      planCode: "trial",
       badge: "Evaluation",
     },
     {
       name: "Micro-Entity",
-      price: "999",
+      price: "2,500",
       description: "Core compliance for small teams",
       icon: Building2,
       color: "navy",
@@ -66,15 +79,16 @@ export default function PricingPage() {
         "Email-only resolution",
       ],
       cta: "Select Protocol",
+      planCode: "micro-entity",
     },
     {
-      name: "SME Power",
-      price: "2,499",
-      description: "Our most utilized institutional tier",
+      name: "Institutional SME",
+      price: "7,500",
+      description: "Comprehensive statutory automation",
       icon: Rocket,
       color: "blue",
       features: [
-        "Up to 20 Active Employees",
+        "Up to 50 Active Employees",
         "Everything in Micro-Entity",
         "Bulk Governance Tools",
         "Automated Disbursements",
@@ -84,30 +98,53 @@ export default function PricingPage() {
       limitations: [],
       cta: "Scale Compliance",
       popular: true,
+      planCode: "institutional-sme",
     },
     {
-      name: "Enterprise",
-      price: "4,999",
-      description: "Unrestricted business autonomy",
+      name: "Institutional Elite",
+      price: "19,500",
+      description: "Advanced autonomy for larger entities",
       icon: Scale,
       color: "navy",
       features: [
-        "Unrestricted Headcount",
+        "Up to 200 Active Employees",
         "Everything in SME Power",
-        "Dedicated Compliance Officer",
+        "Bulk Export Engine (High Speed)",
         "Direct iTax Integration (Beta Access)",
         "Custom Audit Reporting",
         "API Governance Access",
       ],
       limitations: [],
+      cta: "Engage Elite",
+      planCode: "institutional-elite",
+    },
+    {
+      name: "Conglomerate",
+      price: "49,500",
+      description: "Unlimited scale and custom governance",
+      icon: Shield,
+      color: "emerald",
+      features: [
+        "Unlimited Headcount (200+)",
+        "Dedicated Compliance Officer",
+        "Private Cloud Vault Subnet",
+        "Unlimited Bulk Processing",
+        "Multi-Entity Management",
+        "White-label Reporting",
+      ],
+      limitations: [],
       cta: "Connect via Counsel",
+      planCode: "conglomerate",
     },
   ]
 
-  const handleSelectPlan = async (planName: string, price: string) => {
-    const tierKey = planName.toLowerCase().replace(" ", "-")
+  const handleSelectPlan = async (plan: PricingPlan, amount: number) => {
+    if (!plan.planCode) {
+      showAlert("Plan Error", "Unsupported plan selected.")
+      return
+    }
 
-    if (planName.includes("Trial")) {
+    if (plan.planCode === "trial" || plan.planCode === "free_trial") {
       showConfirm(
         "Activate Trial Protocol?",
         "This will initialize a 7-day statutory evaluation of your institutional risk. Are you ready to proceed?",
@@ -116,22 +153,19 @@ export default function PricingPage() {
             showAlert("Authentication Required", "Please sign in to initialize your institutional trial.")
             return
           }
-          setLoading(true)
-          const { error } = await supabase
-            .from('profiles')
-            .update({
-              subscription_plan: 'free_trial', // Match auth-context initial plan
-              subscription_status: 'active'
-            })
-            .eq('id', user.id)
-
-          if (!error) {
+          try {
+            setLoading(true)
+            const res = await fetch('/api/subscription/activate-trial', { method: 'POST' })
+            const data = await res.json()
+            if (!res.ok) {
+              showAlert("Vault Sync Error", data.error || "Failed to initialize trial.")
+              return
+            }
             showToast("Trial Protocol Activated. Vault synchronized.", "success")
-            setTimeout(() => window.location.reload(), 1000)
-          } else {
-            showAlert("Vault Sync Error", "Failed to initialize trial: " + error.message)
+            setTimeout(() => window.location.reload(), 800)
+          } finally {
+            setLoading(false)
           }
-          setLoading(false)
         },
         "Initialize Trial",
         "Maintain Status Quo"
@@ -139,55 +173,83 @@ export default function PricingPage() {
       return
     }
 
-    // Unified Payment Protocol for All Paid Tiers
+    if (!user) {
+      showAlert("Authentication Required", "Please sign in to purchase a plan.")
+      return
+    }
 
     showPrompt(
       "Financial Authorization",
-      "To initiate the secure M-Pesa handshake and upgrade your vault, please enter your M-Pesa phone number.",
+      "To initiate secure M-Pesa STK push, enter your M-Pesa phone number. Your plan activates automatically after callback confirmation.",
       async (phoneNumber) => {
         if (!phoneNumber || !user) return
         setLoading(true)
 
-        showToast("Processing M-Pesa Handshake...", "info")
-
-        // Simulating Payment Handshake then DB Update
-        setTimeout(async () => {
-          const { error } = await supabase
-            .from('profiles')
-            .update({
-              subscription_plan: tierKey,
-              subscription_status: 'active'
-            })
-            .eq('id', user.id)
-
-          if (!error) {
-            showToast(`M-Pesa Verified. Tier [${planName}] Unlocked successfully.`, "success")
-            setTimeout(() => window.location.reload(), 1500)
-          } else {
-            showAlert("Sync Error", "Payment received but vault sync failed: " + error.message)
+        try {
+          showToast("Processing M-Pesa Handshake...", "info")
+          const res = await fetch('/api/mpesa/payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              phoneNumber,
+              amount,
+              plan: plan.planCode,
+            }),
+          })
+          const data = await res.json()
+          if (!res.ok) {
+            showAlert("Payment Error", data.message || data.error || "Failed to initiate M-Pesa payment.")
+            return
           }
+          showToast(`STK sent. ${plan.name} will activate after you accept the prompt.`, "success")
+        } finally {
           setLoading(false)
-        }, 2000)
+        }
       },
       "254..."
     )
   }
 
   const handlePayPerUse = (itemLabel: string, price: string) => {
+    const featurePlanCode: Record<string, string> = {
+      Contract: 'ppu-contract',
+      Payroll: 'ppu-payroll',
+      Privacy: 'ppu-privacy',
+      'Scan/OCR': 'ppu-scan',
+    }
+    const plan = featurePlanCode[itemLabel]
+    const amount = Number(price.replace(/,/g, ''))
+    if (!plan) {
+      showAlert("Plan Error", "Unsupported pay-per-use item.")
+      return
+    }
+
     showPrompt(
       "Single-Use Authorization",
-      `Initiate KES ${price} M-Pesa transaction for one-time ${itemLabel} audit?`,
+      `Initiate KES ${price} M-Pesa transaction for one-time ${itemLabel} credit?`,
       async (phoneNumber) => {
         if (!phoneNumber || !user) return
         setLoading(true)
-        showToast("Processing Liquidity Transfer...", "info")
-
-        setTimeout(async () => {
-          // In a real scenario, we'd log this transaction to a 'credits' table
-          unlockFeature(itemLabel.toLowerCase())
-          showToast(`M-Pesa Verified. ${itemLabel} Protocol Unlocked for Session.`, "success")
+        try {
+          showToast("Processing Liquidity Transfer...", "info")
+          const res = await fetch('/api/mpesa/payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              phoneNumber,
+              amount,
+              plan,
+            }),
+          })
+          const data = await res.json()
+          if (!res.ok) {
+            showAlert("Payment Error", data.message || data.error || "Failed to initiate M-Pesa payment.")
+            return
+          }
+          showToast(`STK sent. ${itemLabel} credit will be added after payment callback.`, "success")
+        } finally {
           setLoading(false)
-        }, 2000)
+        }
       },
       "254..."
     )
@@ -225,61 +287,70 @@ export default function PricingPage() {
       </div>
 
       {/* Pricing Matrix */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-10">
         {plans.map((plan) => {
           const Icon = plan.icon
-          const price = billingCycle === 'annual' ? Math.floor(parseInt(plan.price.replace(',', '')) * 0.8).toLocaleString() : plan.price
+          const numericPrice = billingCycle === 'annual' ? Math.floor(parseInt(plan.price.replace(',', '')) * 0.8) : parseInt(plan.price.replace(',', ''))
+          const price = numericPrice.toLocaleString()
+          const privileges = getPlanPrivileges(plan.planCode || '')
 
           return (
-            <Card
-              key={plan.name}
-              className={`group relative border-none overflow-hidden transition-all duration-500 hover:scale-[1.02] ${plan.popular ? 'shadow-[0_40px_80px_rgba(0,0,0,0.12)] bg-navy-950 text-white' : 'glass-card'}`}
-            >
-              {plan.popular && (
-                <div className="absolute top-0 right-0 bg-emerald-500 text-white px-6 py-2 rounded-bl-3xl text-[10px] font-black uppercase tracking-widest z-10 shadow-lg">
-                  Primary Plan
-                </div>
-              )}
-              <CardHeader className="p-8 pb-4">
-                <div className={`h-14 w-14 rounded-2xl flex items-center justify-center mb-6 transition-all group-hover:rotate-12 ${plan.popular ? 'bg-white/10' : 'bg-navy-50 text-navy-600'}`}>
-                  <Icon className="h-7 w-7" />
-                </div>
-                <h3 className={`text-xl font-black uppercase tracking-tight ${plan.popular ? 'text-white' : 'text-navy-950'}`}>{plan.name}</h3>
-                <p className={`text-xs font-medium mt-1 ${plan.popular ? 'text-navy-400' : 'text-navy-500'}`}>{plan.description}</p>
-                <div className="mt-8 flex items-baseline gap-2">
-                  <span className="text-sm font-black opacity-50 uppercase">KES</span>
-                  <span className="text-4xl font-black">{price}</span>
-                  <span className="text-xs font-bold opacity-40">/mo</span>
-                </div>
-              </CardHeader>
-              <CardContent className="p-8 pt-6 space-y-8">
-                <Button
-                  onClick={() => handleSelectPlan(plan.name, price)}
-                  disabled={loading}
-                  className={`w-full h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl transition-all ${plan.popular ? 'bg-white text-navy-950 hover:bg-emerald-50 shadow-emerald-950/20' : 'bg-navy-950 text-white hover:bg-navy-800 shadow-navy-200'}`}
-                >
-                  {plan.cta} <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-
-                <div className="space-y-4">
-                  <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${plan.popular ? 'text-navy-500' : 'text-navy-400'}`}>Tier Privileges</p>
-                  <div className="space-y-3">
-                    {plan.features.map((feature, index) => (
-                      <div key={index} className="flex items-start gap-3">
-                        <div className={`mt-1 h-1.5 w-1.5 rounded-full shrink-0 ${plan.popular ? 'bg-emerald-400' : 'bg-navy-900'}`} />
-                        <span className={`text-[11px] font-semibold leading-relaxed ${plan.popular ? 'text-navy-300' : 'text-navy-700'}`}>{feature}</span>
-                      </div>
-                    ))}
-                    {plan.limitations.map((limitation, index) => (
-                      <div key={index} className="flex items-start gap-3 opacity-40">
-                        <X className={`h-4 w-4 shrink-0 ${plan.popular ? 'text-white' : 'text-navy-400'}`} />
-                        <span className={`text-[11px] font-bold line-through ${plan.popular ? 'text-white' : 'text-navy-950'}`}>{limitation}</span>
-                      </div>
-                    ))}
+            <div key={plan.name} className="h-full">
+              <Card
+                className={`group relative border-none overflow-hidden transition-all duration-500 hover:scale-[1.02] h-full min-h-[520px] flex flex-col ${plan.popular ? 'shadow-[0_40px_80px_rgba(0,0,0,0.12)] bg-navy-950 text-white' : 'glass-card'}`}
+              >
+                {plan.popular && (
+                  <div className="absolute top-0 right-0 bg-emerald-500 text-white px-6 py-2 rounded-bl-3xl text-[10px] font-black uppercase tracking-widest z-10 shadow-lg">
+                    Primary Plan
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                )}
+                <CardHeader className="p-8 pb-4">
+                  <div className={`h-14 w-14 rounded-2xl flex items-center justify-center mb-6 transition-all group-hover:rotate-12 ${plan.popular ? 'bg-white/10' : 'bg-navy-50 text-navy-600'}`}>
+                    <Icon className="h-7 w-7" />
+                  </div>
+                  <h3 className={`text-xl font-black uppercase tracking-tight ${plan.popular ? 'text-white' : 'text-navy-950'}`}>{plan.name}</h3>
+                  <p className={`text-xs font-medium mt-1 ${plan.popular ? 'text-navy-400' : 'text-navy-500'}`}>{plan.description}</p>
+                  <div className="mt-8 flex items-baseline gap-2">
+                    <span className="text-sm font-black opacity-50 uppercase">KES</span>
+                    <span className="text-4xl font-black">{price}</span>
+                    <span className="text-xs font-bold opacity-40">/mo</span>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-8 pt-6 flex flex-col gap-6 h-full">
+                  <Button
+                    onClick={() => handleSelectPlan(plan, numericPrice)}
+                    disabled={loading}
+                    className={`w-full h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl transition-all ${plan.popular ? 'bg-white text-navy-950 hover:bg-emerald-50 shadow-emerald-950/20' : 'bg-navy-950 text-white hover:bg-navy-800 shadow-navy-200'}`}
+                  >
+                    {plan.cta} <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+
+                  <div className="space-y-4 flex-1 flex flex-col justify-between">
+                    <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${plan.popular ? 'text-navy-500' : 'text-navy-400'}`}>Tier Privileges</p>
+                    <div className="space-y-3">
+                      {plan.features.map((feature, index) => (
+                        <div key={index} className="flex items-start gap-3">
+                          <div className={`mt-1 h-1.5 w-1.5 rounded-full shrink-0 ${plan.popular ? 'bg-emerald-400' : 'bg-navy-900'}`} />
+                          <span className={`text-[11px] font-semibold leading-relaxed ${plan.popular ? 'text-navy-300' : 'text-navy-700'}`}>{feature}</span>
+                        </div>
+                      ))}
+                      {plan.limitations.map((limitation, index) => (
+                        <div key={index} className="flex items-start gap-3 opacity-40">
+                          <X className={`h-4 w-4 shrink-0 ${plan.popular ? 'text-white' : 'text-navy-400'}`} />
+                          <span className={`text-[11px] font-bold line-through ${plan.popular ? 'text-white' : 'text-navy-950'}`}>{limitation}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      <span className={`text-[9px] font-black uppercase tracking-[0.2em] ${privileges.privateVaultSubnet ? 'text-emerald-600' : 'text-rose-600'}`}>Vault Subnet</span>
+                      <span className={`text-[9px] font-black uppercase tracking-[0.2em] ${privileges.complianceOfficer ? 'text-emerald-600' : 'text-rose-600'}`}>Compliance Officer</span>
+                      <span className={`text-[9px] font-black uppercase tracking-[0.2em] ${privileges.multiEntityManagement ? 'text-emerald-600' : 'text-rose-600'}`}>Multi-Entity</span>
+                      <span className={`text-[9px] font-black uppercase tracking-[0.2em] ${privileges.whiteLabelReporting ? 'text-emerald-600' : 'text-rose-600'}`}>White-label</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )
         })}
       </div>
@@ -301,10 +372,10 @@ export default function PricingPage() {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full lg:w-auto">
             {[
-              { label: "Contract", price: "99" },
-              { label: "Payroll", price: "49" },
-              { label: "Privacy", price: "99" },
-              { label: "Scan/OCR", price: "29" },
+              { label: "Contract", price: "999" },
+              { label: "Payroll", price: "499" },
+              { label: "Privacy", price: "999" },
+              { label: "Scan/OCR", price: "299" },
             ].map((item) => (
               <button
                 key={item.label}

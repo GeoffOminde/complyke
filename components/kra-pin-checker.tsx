@@ -5,11 +5,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Search, CheckCircle2, AlertCircle, Fingerprint, ExternalLink } from "lucide-react"
-import { validateKRAPINFormat } from "@/lib/kra-validation"
+interface KRAResult {
+    valid?: boolean
+    formatValid?: boolean
+    authentic?: boolean
+    message?: string
+    pinType?: string
+    status?: string
+    auditId?: string
+    grounding?: {
+        citations: Array<{
+            title: string
+            uri?: string
+            detail?: string
+        }>
+    }
+}
 
 export default function KRAPINChecker() {
     const [pin, setPin] = useState("")
-    const [result, setResult] = useState<any>(null)
+    const [result, setResult] = useState<KRAResult | null>(null)
     const [isLoading, setIsLoading] = useState(false)
 
     const handleCheck = async () => {
@@ -25,7 +40,7 @@ export default function KRAPINChecker() {
             })
             const data = await response.json()
             setResult(data)
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Handshake failed:', err)
             setResult({ valid: false, message: 'Institutional handshake failed. Please check network protocols.' })
         } finally {
@@ -110,7 +125,7 @@ export default function KRAPINChecker() {
                                             <p className="text-[9px] font-black text-navy-400 uppercase tracking-widest">Grounding Citations via Vertex AI</p>
                                         </div>
                                         <div className="space-y-2">
-                                            {result.grounding.citations.map((cite: any, idx: number) => (
+                                            {result.grounding.citations.map((cite, idx) => (
                                                 <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-navy-50 hover:border-navy-200 transition-colors cursor-pointer group/cite">
                                                     <div className="flex items-center gap-2">
                                                         <div className="w-1 h-1 rounded-full bg-navy-300 group-hover/cite:bg-navy-600 transition-colors" />

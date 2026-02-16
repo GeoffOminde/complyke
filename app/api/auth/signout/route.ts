@@ -14,8 +14,9 @@ export async function POST() {
         // will handle removing the session cookies.
 
         return NextResponse.json({ success: true, message: 'Institutional Session Terminated' })
-    } catch (error: any) {
-        console.error('Logout protocol failure:', error.message)
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Logout protocol failure'
+        console.error('Logout protocol failure:', message)
+        return NextResponse.json({ error: message }, { status: 500 })
     }
 }

@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase-server'
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY || '',
-})
+const apiKey = process.env.GEMINI_API_KEY
 
 // 2025 Minimum Wage Data for Kenya
 const MINIMUM_WAGES_2025 = {
@@ -39,9 +36,9 @@ export async function POST(req: NextRequest) {
         const body: ContractReviewRequest = await req.json()
         const { employeeName, jobTitle, grossSalary, location, contractText } = body
 
-        if (!process.env.OPENAI_API_KEY) {
+        if (!apiKey) {
             return NextResponse.json(
-                { error: 'OpenAI API key not configured' },
+                { error: 'AI key not configured. Set GEMINI_API_KEY.' },
                 { status: 500 }
             )
         }
@@ -56,7 +53,7 @@ export async function POST(req: NextRequest) {
 
         if (grossSalary < minimumWage) {
             issues.push(
-                `❌ CRITICAL: Salary (KES ${grossSalary.toLocaleString()}) is below the 2025 minimum wage for ${location} (KES ${minimumWage.toLocaleString()}). This violates the Regulation of Wages (General) Order 2025.`
+                `CRITICAL: Salary (KES ${grossSalary.toLocaleString()}) is below the 2025 minimum wage for ${location} (KES ${minimumWage.toLocaleString()}). This violates the Regulation of Wages (General) Order 2025.`
             )
         }
 
@@ -93,23 +90,42 @@ Format your response as:
 
 Be specific and cite relevant sections of Kenyan law.`
 
-        const aiResponse = await openai.chat.completions.create({
-            model: 'gpt-4o',
-            messages: [
-                {
-                    role: 'system',
-                    content: 'You are an expert in Kenyan employment law. Provide precise, actionable feedback on employment contracts.'
-                },
-                {
-                    role: 'user',
-                    content: reviewPrompt
+        type GeminiResponse = {
+            candidates?: Array<{
+                content?: {
+                    parts?: Array<{ text?: string }>
                 }
-            ],
-            temperature: 0.3,
-            max_tokens: 1000
-        })
+            }>
+        }
 
-        const aiReview = aiResponse.choices[0]?.message?.content || ''
+        const geminiRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    systemInstruction: {
+                        parts: [{ text: 'You are an expert in Kenyan employment law. Provide precise, actionable feedback on employment contracts.' }]
+                    },
+                    contents: [{ parts: [{ text: reviewPrompt }] }],
+                    generationConfig: {
+                        temperature: 0.3,
+                        maxOutputTokens: 1000
+                    }
+                })
+            }
+        )
+
+        if (!geminiRes.ok) {
+            const errBody = await geminiRes.text()
+            return NextResponse.json(
+                { error: `Gemini request failed: ${errBody}` },
+                { status: geminiRes.status }
+            )
+        }
+
+        const aiResponse = await geminiRes.json() as GeminiResponse
+        const aiReview = aiResponse.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('\n').trim() || ''
 
         // Parse AI response
         const issuesMatch = aiReview.match(/\*\*ISSUES:\*\*([\s\S]*?)(?=\*\*WARNINGS:|\*\*SUGGESTIONS:|$)/i)
@@ -151,10 +167,11 @@ Be specific and cite relevant sections of Kenyan law.`
             fullReview: aiReview
         })
 
-    } catch (error: any) {
-        console.error('Contract Review Error:', error)
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Failed to review contract'
+        console.error('Contract Review Error:', message)
         return NextResponse.json(
-            { error: error.message || 'Failed to review contract' },
+            { error: message },
             { status: 500 }
         )
     }

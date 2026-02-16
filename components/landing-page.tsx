@@ -11,20 +11,20 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
     return (
         <div className="flex flex-col min-h-screen bg-white">
             {/* Navigation - Simple translucent */}
-            <nav className="fixed top-0 w-full z-50 glass-card bg-white/70 border-b border-navy-50/50 px-6 py-4 flex items-center justify-between">
+            <nav className="fixed top-0 w-full z-50 glass-card bg-white/70 border-b border-navy-50/50 px-4 sm:px-6 py-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <div className="h-10 w-10 rounded-xl bg-navy-950 flex items-center justify-center shadow-lg shadow-navy-900/20">
-                        <Shield className="h-6 w-6 text-white" />
+                    <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center shadow-lg shadow-navy-100 overflow-hidden border border-navy-50">
+                        <img src="/logo.svg" alt="ComplyKe Logo" className="h-6 w-6" />
                     </div>
                     <span className="text-xl font-black text-navy-950 tracking-tighter uppercase">ComplyKe</span>
                 </div>
-                <Button onClick={onGetStarted} className="bg-navy-950 text-white rounded-full px-8 hover:scale-105 transition-transform">
+                <Button onClick={onGetStarted} className="bg-navy-950 text-white rounded-full px-5 sm:px-8 hover:scale-105 transition-transform">
                     Sign In
                 </Button>
             </nav>
 
             {/* Hero Section */}
-            <section className="relative pt-32 pb-20 px-6 overflow-hidden">
+            <section className="relative pt-28 sm:pt-32 pb-20 px-4 sm:px-6 overflow-hidden">
                 <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-emerald-50/50 to-transparent -z-10" />
                 <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
                     <div className="space-y-8">
@@ -36,13 +36,13 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                             <span className="text-xs font-black text-emerald-700 uppercase tracking-widest leading-none">Updated for February 2026 Rates</span>
                         </div>
 
-                        <h1 className="text-6xl lg:text-8xl font-black text-navy-950 leading-[0.9] tracking-tighter">
+                        <h1 className="text-4xl sm:text-6xl lg:text-8xl font-black text-navy-950 leading-[0.9] tracking-tighter">
                             Compliance <br />
                             <span className="text-emerald-500 italic">Redefined</span> <br />
                             for Kenya.
                         </h1>
 
-                        <p className="text-xl text-navy-600 font-medium max-w-lg leading-relaxed">
+                        <p className="text-lg sm:text-xl text-navy-600 font-medium max-w-lg leading-relaxed">
                             Protect your SME from KRA fines and legal risks. Simple, AI-powered compliance management built specifically for the Kenyan ecosystem.
                         </p>
 
@@ -51,16 +51,16 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                                 Start 7-Day Free Trial
                                 <ArrowRight className="ml-2 h-5 w-5" />
                             </Button>
-                            <div className="flex -space-x-4 items-center">
-                                {[1, 2, 3, 4].map((i) => (
-                                    <div key={i} className="h-12 w-12 rounded-full border-4 border-white overflow-hidden bg-navy-100 ring-2 ring-emerald-50">
-                                        <img src={`https://i.pravatar.cc/150?u=${i + 10}`} alt="User" />
+                            <div className="flex -space-x-3">
+                                {[1, 2, 3, 4].map(i => (
+                                    <div key={i} className="h-10 w-10 rounded-full border-2 border-white bg-navy-100 overflow-hidden flex items-center justify-center text-[10px] font-black">
+                                        JD
                                     </div>
                                 ))}
-                                <div className="pl-8">
-                                    <p className="text-sm font-black text-navy-950 uppercase tracking-widest leading-none">500+ Businesses</p>
-                                    <p className="text-[10px] font-bold text-navy-600 mt-1 uppercase tracking-[0.2em]">Already staying safe</p>
-                                </div>
+                            </div>
+                            <div className="text-left">
+                                <p className="text-sm font-black text-navy-950">&quot;The iTax automation plan is brilliant.&quot;</p>
+                                <p className="text-[10px] text-navy-500 font-bold uppercase tracking-widest">James D. • CEO, Logistics Co.</p>
                             </div>
                         </div>
                     </div>
@@ -71,7 +71,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                             <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=1200" alt="Dashboard Preview" className="w-full grayscale hover:grayscale-0 transition-all duration-700" />
                         </div>
                         {/* Floating badges */}
-                        <div className="absolute -top-10 -left-10 z-20 glass-card p-6 rounded-3xl shadow-xl animate-float">
+                        <div className="absolute -top-10 -left-10 z-20 glass-card p-6 rounded-3xl shadow-xl animate-float hidden lg:block">
                             <div className="flex items-center gap-4">
                                 <div className="h-12 w-12 rounded-2xl bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-200">
                                     <Receipt className="h-6 w-6" />
@@ -82,7 +82,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                                 </div>
                             </div>
                         </div>
-                        <div className="absolute -bottom-10 -right-10 z-20 bg-white p-6 rounded-3xl shadow-2xl border border-navy-50 animate-float-delayed">
+                        <div className="absolute -bottom-10 -right-10 z-20 bg-white p-6 rounded-3xl shadow-2xl border border-navy-50 animate-float-delayed hidden lg:block">
                             <div className="space-y-3">
                                 <p className="text-[10px] font-black text-navy-400 uppercase tracking-widest">Compliance Status</p>
                                 <div className="flex items-center gap-2">
@@ -99,11 +99,11 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             </section>
 
             {/* Features Grid */}
-            <section className="py-24 px-6 bg-navy-50/30">
+            <section className="py-20 sm:py-24 px-4 sm:px-6 bg-navy-50/30">
                 <div className="max-w-7xl mx-auto space-y-16">
                     <div className="text-center space-y-4">
                         <h2 className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.4em]">The Strategic Pillars</h2>
-                        <h3 className="text-5xl font-black text-navy-950 tracking-tighter italic lg:text-6xl">Everything you need for Kenyan compliance.</h3>
+                        <h3 className="text-3xl sm:text-5xl font-black text-navy-950 tracking-tighter italic lg:text-6xl">Everything you need for Kenyan compliance.</h3>
                     </div>
 
                     <div className="grid md:grid-cols-3 gap-8">
@@ -115,7 +115,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                                 color: "emerald"
                             },
                             {
-                                icon: () => <Zap className="h-6 w-6" />,
+                                icon: Zap,
                                 title: "Statutory Engine",
                                 desc: "Real-time updates for PAYE, SHIF, Housing Levy, and NSSF. Accurate calculations for the 2026 fiscal year.",
                                 color: "blue"
@@ -140,18 +140,18 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             </section>
 
             {/* Testimonials */}
-            <section className="py-24 px-6 relative overflow-hidden">
+            <section className="py-20 sm:py-24 px-4 sm:px-6 relative overflow-hidden">
                 <div className="max-w-7xl mx-auto grid lg:grid-cols-12 gap-12 items-center">
                     <div className="lg:col-span-5 space-y-6">
                         <h2 className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.4em]">Institutional Safety</h2>
-                        <h3 className="text-5xl font-black text-navy-950 tracking-tighter italic">Trusted by SME owners across Nairobi.</h3>
-                        <p className="text-navy-600 font-medium">We've helped hundreds of businesses avoid KRA penalties and navigate the complex legal environment of 2026.</p>
+                        <h3 className="text-3xl sm:text-5xl font-black text-navy-950 tracking-tighter italic">Trusted by SME owners across Nairobi.</h3>
+                        <p className="text-navy-600 font-medium">We&apos;ve helped hundreds of businesses avoid KRA penalties and navigate the complex legal environment of 2026.</p>
                         <div className="pt-8">
                             <div className="flex gap-1 text-emerald-500 mb-4">
                                 {[1, 2, 3, 4, 5].map(i => <Star key={i} className="h-5 w-5 fill-current" />)}
                             </div>
                             <p className="text-lg font-black text-navy-950 italic whitespace-pre-line leading-tight uppercase font-mono">
-                                "ComplyKe saved us from a <br /> 500k KRA penalty last month."
+                                &quot;ComplyKe saved us from a <br /> 500k KRA penalty last month.&quot;
                             </p>
                             <div className="flex items-center gap-4 mt-6">
                                 <div className="h-12 w-12 rounded-full border-2 border-emerald-500 overflow-hidden bg-navy-100">
@@ -159,19 +159,19 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                                 </div>
                                 <div>
                                     <h5 className="font-black text-navy-950 italic text-sm">Njeri Kamau</h5>
-                                    <p className="text-[10px] font-black text-navy-400 uppercase tracking-widest mt-0.5">CEO, Mama Njeri's Salon</p>
+                                    <p className="text-[10px] font-black text-navy-400 uppercase tracking-widest mt-0.5">CEO, Mama Njeri&apos;s Salon</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="lg:col-span-7 grid grid-cols-2 gap-6 relative">
-                        <div className="space-y-6 pt-12">
+                    <div className="lg:col-span-7 grid sm:grid-cols-2 gap-6">
+                        <div className="space-y-6">
                             {[1, 2].map(i => (
                                 <div key={i} className="p-8 rounded-[40px] bg-navy-950 text-white shadow-2xl space-y-4">
                                     <Quote className="h-8 w-8 text-emerald-400 opacity-20" />
                                     <p className="text-sm font-medium leading-relaxed italic opacity-80">
-                                        "The iTax automation plan is brilliant. We don't spend hours on filing anymore."
+                                        &quot;The iTax automation plan is brilliant. We don&apos;t spend hours on filing anymore.&quot;
                                     </p>
                                     <div className="pt-4 border-t border-white/10 flex items-center justify-between">
                                         <span className="text-[10px] font-black uppercase tracking-widest">Business Owner</span>
@@ -184,7 +184,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                                 <div key={i} className="p-8 rounded-[40px] bg-white border-2 border-navy-50 shadow-xl space-y-4">
                                     <Quote className="h-8 w-8 text-navy-200" />
                                     <p className="text-sm font-semibold leading-relaxed italic text-navy-900">
-                                        "Finally! A compliance app that actually understands Kenyan law."
+                                        &quot;Finally! A compliance app that actually understands Kenyan law.&quot;
                                     </p>
                                     <div className="pt-4 border-t border-navy-50 flex items-center justify-between">
                                         <span className="text-[10px] font-black uppercase tracking-widest text-navy-400">Legal Advisor</span>
@@ -197,10 +197,10 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             </section>
 
             {/* CTA Section */}
-            <section className="py-24 px-6 bg-navy-950 text-white rounded-t-[80px] mt-12 overflow-hidden relative">
+            <section className="py-20 sm:py-24 px-4 sm:px-6 bg-navy-950 text-white rounded-t-[48px] sm:rounded-t-[80px] mt-12 overflow-hidden relative">
                 <div className="absolute top-0 right-0 w-1/3 h-full bg-compliance-gradient opacity-10 blur-3xl" />
                 <div className="max-w-4xl mx-auto text-center space-y-12 relative z-10">
-                    <h2 className="text-5xl lg:text-7xl font-black tracking-tighter leading-none italic uppercase">Ready to Bulletproof <br /> Your Business?</h2>
+                    <h2 className="text-3xl sm:text-5xl lg:text-7xl font-black tracking-tighter leading-none italic uppercase">Ready to Bulletproof <br /> Your Business?</h2>
                     <p className="text-xl text-navy-300 font-medium max-w-2xl mx-auto leading-relaxed">
                         Join the elite circle of Kenyan SMEs who have automated their compliance. Start your free trial today.
                     </p>
@@ -223,13 +223,13 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             </section>
 
             {/* Simple Footer */}
-            <footer className="bg-navy-950 text-white/50 py-12 px-6 border-t border-white/5">
+            <footer className="bg-navy-950 text-white/50 py-12 px-4 sm:px-6 border-t border-white/5">
                 <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
                     <div className="flex items-center gap-2">
                         <Shield className="h-5 w-5 mb-1" />
                         <span className="text-sm font-black tracking-tighter uppercase whitespace-nowrap">ComplyKe Institutional Safety</span>
                     </div>
-                    <div className="flex gap-8 text-[10px] font-black uppercase tracking-[0.2em]">
+                    <div className="flex flex-wrap justify-center gap-6 text-[10px] font-black uppercase tracking-[0.2em]">
                         <a href="#" className="hover:text-white transition-colors">Privacy</a>
                         <a href="#" className="hover:text-white transition-colors">Terms</a>
                         <a href="#" className="hover:text-white transition-colors">Contact</a>

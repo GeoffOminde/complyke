@@ -13,6 +13,23 @@ const BASE_URL = ENVIRONMENT === 'production'
     ? 'https://api.safaricom.co.ke'
     : 'https://sandbox.safaricom.co.ke'
 
+interface MpesaStkResponse {
+    MerchantRequestID: string
+    CheckoutRequestID: string
+    ResponseCode: string
+    ResponseDescription: string
+    CustomerMessage: string
+}
+
+interface MpesaQueryResponse {
+    ResponseCode: string
+    ResponseDescription: string
+    MerchantRequestID: string
+    CheckoutRequestID: string
+    ResultCode: string
+    ResultDesc: string
+}
+
 /**
  * Get OAuth token from M-Pesa API
  */
@@ -30,9 +47,22 @@ export async function getMpesaToken(): Promise<string> {
         )
 
         return response.data.access_token
-    } catch (error) {
+    } catch (error: unknown) {
+        if (axios.isAxiosError(error)) {
+            const status = error.response?.status
+            const data = error.response?.data
+            const detail =
+                (typeof data?.errorMessage === 'string' && data.errorMessage) ||
+                (typeof data?.error_description === 'string' && data.error_description) ||
+                (typeof data?.errorCode === 'string' && data.errorCode) ||
+                (typeof data?.error === 'string' && data.error) ||
+                'unknown_token_error'
+            console.error('M-Pesa token error:', status, data)
+            throw new Error(`M-Pesa token request failed (${status ?? 'unknown'}): ${detail}`)
+        }
         console.error('M-Pesa token error:', error)
-        throw new Error('Failed to get M-Pesa token')
+        const message = error instanceof Error ? error.message : 'Failed to get M-Pesa token'
+        throw new Error(message)
     }
 }
 
@@ -44,7 +74,7 @@ export async function initiateMpesaPayment(
     amount: number,
     accountReference: string,
     transactionDesc: string
-): Promise<any> {
+): Promise<MpesaStkResponse> {
     try {
         const token = await getMpesaToken()
         const timestamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, -3)
@@ -73,16 +103,28 @@ export async function initiateMpesaPayment(
         )
 
         return response.data
-    } catch (error: any) {
-        console.error('M-Pesa payment error:', error.response?.data || error)
-        throw new Error(error.response?.data?.errorMessage || 'Payment initiation failed')
+    } catch (error: unknown) {
+        if (axios.isAxiosError(error)) {
+            const status = error.response?.status
+            const data = error.response?.data
+            const detail =
+                (typeof data?.errorMessage === 'string' && data.errorMessage) ||
+                (typeof data?.ResponseDescription === 'string' && data.ResponseDescription) ||
+                (typeof data?.responseDescription === 'string' && data.responseDescription) ||
+                (typeof data?.errorCode === 'string' && data.errorCode) ||
+                (typeof data?.error === 'string' && data.error) ||
+                'payment_initiation_failed'
+            console.error('M-Pesa payment error:', status, data || error.message)
+            throw new Error(`M-Pesa STK request failed (${status ?? 'unknown'}): ${detail}`)
+        }
+        throw error
     }
 }
 
 /**
  * Query STK Push transaction status
  */
-export async function queryMpesaTransaction(checkoutRequestID: string): Promise<any> {
+export async function queryMpesaTransaction(checkoutRequestID: string): Promise<MpesaQueryResponse> {
     try {
         const token = await getMpesaToken()
         const timestamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, -3)
@@ -104,9 +146,10 @@ export async function queryMpesaTransaction(checkoutRequestID: string): Promise<
         )
 
         return response.data
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('M-Pesa query error:', error)
-        throw new Error('Failed to query transaction')
+        const message = error instanceof Error ? error.message : 'Failed to query transaction'
+        throw new Error(message)
     }
 }
 

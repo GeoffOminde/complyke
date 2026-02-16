@@ -7,7 +7,7 @@ export default function WhatsAppButton() {
     const [isHovered, setIsHovered] = useState(false)
 
     const handleWhatsAppClick = () => {
-        const phoneNumber = "254700123456" // Replace with actual WhatsApp Business number
+        const phoneNumber = "254784810518"
         const message = encodeURIComponent(
             "Hi ComplyKe! I need help with compliance for my business."
         )
