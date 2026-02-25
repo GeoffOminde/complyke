@@ -1,17 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
 
-console.log('🏗️ Wakili API Boot:', {
-  hasGemini: !!process.env.GEMINI_API_KEY,
-  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL
-})
+if (process.env.NODE_ENV === 'development') {
+  console.log('🏗️ Wakili API Boot:', {
+    hasGemini: !!process.env.GEMINI_API_KEY,
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL
+  })
+}
 
 const apiKey = process.env.GEMINI_API_KEY
 
-console.log('🤖 Wakili AI Engine Sync:', {
-  provider: apiKey ? 'GEMINI' : 'NONE',
-  keyDetected: !!apiKey
-})
+if (process.env.NODE_ENV === 'development') {
+  console.log('🤖 Wakili AI Engine Sync:', {
+    provider: apiKey ? 'GEMINI' : 'NONE',
+    keyDetected: !!apiKey
+  })
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,13 +24,15 @@ export async function POST(req: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      console.warn('🛡️ Wakili AI Auth Failure:', {
-        msg: authError?.message,
-        status: authError?.status,
-        code: authError?.name,
-        hasCookies: !!req.cookies.get('sb-dtupozscllrkhtsfskip-auth-token'), // Check for Supabase session cookie
-        allCookies: req.cookies.getAll().map(c => c.name)
-      })
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('🛡️ Wakili AI Auth Failure:', {
+          msg: authError?.message,
+          status: authError?.status,
+          code: authError?.name,
+          hasCookies: !!req.cookies.get('sb-dtupozscllrkhtsfskip-auth-token'),
+          allCookies: req.cookies.getAll().map(c => c.name)
+        })
+      }
       return NextResponse.json(
         {
           error: 'Unauthorized: Institutional session required',
@@ -95,11 +101,13 @@ You have complete historical and current knowledge of:
   * **Penalty:** 3% per month on unpaid amounts.
   * *Source: Affordable Housing Act, 2024.*
 
-* **NSSF (National Social Security Fund):**
-  * **Tier I:** KES 420 (6% of lower earnings limit).
-  * **Tier II:** KES 1,080 maximum (combined Tier I + II).
-  * **Employer Match:** Equal contribution.
-  * *Source: NSSF Act, 2013.*
+* **NSSF (National Social Security Fund) — Phase 4 (Effective Feb 1, 2026):**
+  * Rate: 6% of gross earnings for both employee and employer.
+  * Tier I: 6% on the first KES 9,000 of earnings = KES 540/month.
+  * Tier II: 6% on earnings between KES 9,001 and KES 108,000.
+  * Maximum employee contribution: KES 6,480/month (at KES 108,000 gross).
+  * Employer matches employee contribution.
+  * *Source: NSSF Act, 2013, Phase 4 — effective February 2026.*
 
 * **PAYE (Income Tax) - 2025 Tax Bands:**
   * First KES 24,000: 10%
@@ -229,11 +237,13 @@ If you deduct it arbitrarily, it is illegal.
 
 Note: This is for information only. For court cases, please consult a licensed Advocate."`
 
-    console.log('📬 Wakili Handshake Payload:', {
-      model: 'gemini-flash-latest',
-      messageCount: messages?.length,
-      hasKey: !!apiKey
-    })
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📬 Wakili Handshake Payload:', {
+        model: 'gemini-2.0-flash',
+        messageCount: messages?.length,
+        hasKey: !!apiKey
+      })
+    }
 
     type GeminiResponse = {
       candidates?: Array<{
@@ -259,7 +269,7 @@ Note: This is for information only. For court cases, please consult a licensed A
     }
 
     const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

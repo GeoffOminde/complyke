@@ -18,7 +18,9 @@ export async function archiveToVault(meta: VaultMetadata) {
         // and upload to Supabase Storage. For this protocol phase, 
         // we record the intent and content in the database.
 
-        const auditHash = `AUDIT-${Math.random().toString(36).substring(2, 10).toUpperCase()}`
+        // randomUUID() is cryptographically secure — Math.random() is not suitable
+        // for audit IDs that need to be forensically unique and tamper-evident.
+        const auditHash = `AUDIT-${randomUUID()}`
         const filePath = `vault/${meta.user_id}/${meta.document_type}/${Date.now()}.docx`
 
         const { error } = await supabase

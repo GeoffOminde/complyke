@@ -1,8 +1,17 @@
 import { createBrowserClient } from '@supabase/ssr'
 
-// Use fallbacks for build-time safety
-const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co').trim()
-const supabaseAnonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NDUxOTI4MDAsImV4cCI6MTk2MDc2ODgwMH0.M-JL8-RyRZpXZFZJxn1vW8RGNuJvjCHq1V1RlJxqZ0A').trim()
+// Fail loudly at startup if Supabase env vars are missing.
+// NEVER fall back to a hardcoded URL or JWT — even a "placeholder" one.
+// Hardcoded credentials are scraped from repos and mask misconfiguration.
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error(
+        'Missing Supabase environment variables. ' +
+        'Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env file.'
+    )
+}
 
 export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey)
 

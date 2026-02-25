@@ -1,15 +1,18 @@
 /**
  * COMPLYKE TAX CALCULATOR - DETERMINISTIC ENGINE
- * 
+ *
  * CRITICAL: This module uses HARDCODED rates from verified 2025 Kenyan statutes.
  * NO AI INFERENCE. NO PREDICTIONS. ONLY MATH.
- * 
+ *
  * Sources:
  * - Social Health Insurance Act, 2023 (SHIF)
  * - Affordable Housing Act, 2024 (Housing Levy)
  * - NSSF Act, 2013 (Pension)
  * - Income Tax Act (PAYE Bands)
  */
+
+import { MINIMUM_WAGES } from './statutory-rates'
+export { MINIMUM_WAGES as MINIMUM_WAGES_2026 } from './statutory-rates'
 
 // ============================================================================
 // HARDCODED STATUTORY RATES (2025 VERIFIED)
@@ -171,21 +174,16 @@ export function calculatePayroll(grossSalary: number): PayrollBreakdown {
  * Minimum Wage Validation (2026)
  * Source: Regulation of Wages (General) (Amendment) Order, 2024 (Legal Notice No. 164)
  * Effective: November 2024 (6% increase)
- * 
+ *
  * Note: The living wage in Kenya is estimated at KES 35,518/month,
  * significantly higher than statutory minimums.
+ *
+ * MINIMUM_WAGES_2026 is re-exported from lib/statutory-rates.ts — the single
+ * source of truth. Do NOT define these values inline here.
  */
-export const MINIMUM_WAGES_2026 = {
-    nairobi: 16114,   // Major cities (Nairobi, Mombasa, Kisumu)
-    mombasa: 16114,
-    kisumu: 16114,
-    other: 15202,     // Other urban areas
-    rural: 7997       // Rural areas
-} as const
-
 export function isAboveMinimumWage(salary: number, location: string = 'other'): boolean {
-    const locationKey = location.toLowerCase() as keyof typeof MINIMUM_WAGES_2026
-    const minimumWage = MINIMUM_WAGES_2026[locationKey] || MINIMUM_WAGES_2026.other
+    const locationKey = (location.toLowerCase()) as keyof typeof MINIMUM_WAGES
+    const minimumWage = MINIMUM_WAGES[locationKey] ?? MINIMUM_WAGES.other
     return salary >= minimumWage
 }
 
@@ -195,7 +193,6 @@ export function isAboveMinimumWage(salary: number, location: string = 'other'): 
 export function formatKES(amount: number): string {
     return `KES ${amount.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
-
 /**
  * Calculate Housing Levy Penalty
  * Source: Affordable Housing Act, 2024

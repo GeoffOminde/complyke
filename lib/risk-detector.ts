@@ -1,14 +1,16 @@
 /**
  * COMPLYKE RISK DETECTOR - DETERMINISTIC COMPLIANCE ENGINE
- * 
+ *
  * This module implements hardcoded "Red Flag" triggers based on specific
  * sections of Kenyan law. NO AI INFERENCE. ONLY RULE-BASED LOGIC.
- * 
+ *
  * Sources:
  * - Employment Act, 2007 (Section 37: Casual Worker Conversion)
  * - Tax Procedures Act (Section 23A: eTIMS Requirement)
  * - Affordable Housing Act, 2024 (Penalty Calculations)
  */
+
+import { MINIMUM_WAGES, type MinimumWageLocation } from './statutory-rates'
 
 // ============================================================================
 // RISK TRIGGER 1: CASUAL WORKER CONVERSION (SECTION 37)
@@ -212,17 +214,9 @@ export interface MinimumWageRisk {
  */
 export function checkMinimumWageCompliance(
     salary: number,
-    location: 'nairobi' | 'mombasa' | 'kisumu' | 'nakuru' | 'other'
+    location: MinimumWageLocation
 ): MinimumWageRisk {
-    const minimumWages = {
-        nairobi: 17000,
-        mombasa: 16500,
-        kisumu: 15500,
-        nakuru: 15000,
-        other: 15000
-    }
-
-    const minimumWage = minimumWages[location]
+    const minimumWage = MINIMUM_WAGES[location] ?? MINIMUM_WAGES.other
     const isCompliant = salary >= minimumWage
     const shortfall = isCompliant ? 0 : minimumWage - salary
 
@@ -272,7 +266,7 @@ export function generateComplianceReport(params: {
     employeeStartDate?: string
     contractType?: 'casual' | 'permanent' | 'contract'
     salary?: number
-    location?: 'nairobi' | 'mombasa' | 'kisumu' | 'nakuru' | 'other'
+    location?: MinimumWageLocation
     housingLevyMonthsUnpaid?: number
 }): ComplianceRiskReport {
     const risks: ComplianceRiskReport['risks'] = {}
@@ -296,7 +290,7 @@ export function generateComplianceReport(params: {
 
     // Check minimum wage compliance
     if (params.salary && params.location) {
-        const wageRisk = checkMinimumWageCompliance(params.salary, params.location)
+        const wageRisk = checkMinimumWageCompliance(params.salary, params.location as MinimumWageLocation)
         risks.minimumWage = wageRisk
 
         if (wageRisk.severity === 'CRITICAL') {

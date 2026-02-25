@@ -1,12 +1,14 @@
 import axios from 'axios'
 
 // M-Pesa Configuration
-// CRITICAL SECURITY: Use server-side environment variables for secrets to prevent exposure
-const CONSUMER_KEY = (process.env.MPESA_CONSUMER_KEY || process.env.NEXT_PUBLIC_MPESA_CONSUMER_KEY || '').trim()
-const CONSUMER_SECRET = (process.env.MPESA_CONSUMER_SECRET || process.env.NEXT_PUBLIC_MPESA_CONSUMER_SECRET || '').trim()
-const PASSKEY = (process.env.MPESA_PASSKEY || process.env.NEXT_PUBLIC_MPESA_PASSKEY || '').trim()
-const SHORTCODE = (process.env.MPESA_SHORTCODE || process.env.NEXT_PUBLIC_MPESA_SHORTCODE || '174379').trim()
-const ENVIRONMENT = (process.env.MPESA_ENVIRONMENT || process.env.NEXT_PUBLIC_MPESA_ENVIRONMENT || 'sandbox').trim()
+// SECURITY: All M-Pesa secrets MUST use server-side env vars only.
+// NEVER use NEXT_PUBLIC_MPESA_* — those are bundled into client-side JS
+// and expose credentials to anyone who opens DevTools.
+const CONSUMER_KEY = (process.env.MPESA_CONSUMER_KEY || '').trim()
+const CONSUMER_SECRET = (process.env.MPESA_CONSUMER_SECRET || '').trim()
+const PASSKEY = (process.env.MPESA_PASSKEY || '').trim()
+const SHORTCODE = (process.env.MPESA_SHORTCODE || '174379').trim()
+const ENVIRONMENT = (process.env.MPESA_ENVIRONMENT || 'sandbox').trim()
 
 // API URLs
 const BASE_URL = ENVIRONMENT === 'production'

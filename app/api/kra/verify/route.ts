@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
+import { randomUUID } from 'node:crypto'
 
 export async function POST(req: NextRequest) {
     try {
@@ -38,36 +39,35 @@ export async function POST(req: NextRequest) {
             })
         }
 
-        // 2. Predictive Check Digit Audit
+        // 2. Check Digit Audit (deterministic)
         // KRA PINs use a non-public weighted checksum for the final letter.
-        // We simulate this "Check Digit" logic to identify high-probability counterfeits.
-        const isCounterfeitDigitAudit = (p: string) => {
+        // We simulate this logic to identify high-probability counterfeits.
+        // NOTE: The real KRA checksum weights are not publicly documented.
+        // This is a best-effort approximation — it is NOT a live KRA DB lookup.
+        const isLikelyCounterfeit = (p: string) => {
             const digits = p.substring(1, 10)
             const lastLetter = p[10]
 
-            // Simulation of KRA's weighted checksum (Confidential Weights)
-            // In reality, each position from 1-9 has a multiplier.
+            // Simulation of KRA's weighted checksum (weights are not officially published)
             const weights = [1, 3, 7, 1, 3, 7, 1, 3, 7]
             let sum = 0
             for (let i = 0; i < 9; i++) {
                 sum += parseInt(digits[i]) * weights[i]
             }
 
-            // Map the sum to a letter (A=0, B=1...)
-            // This simulation ensures that random digit strings won't match random letters.
-            const expectedLetterCode = 65 + (sum % 26) // 65 is ASCII 'A'
+            const expectedLetterCode = 65 + (sum % 26)
             const expectedLetter = String.fromCharCode(expectedLetterCode)
 
-            // Pattern 1: Deterministic failure (e.g., all same digits)
+            // Deterministic failure patterns (no randomness)
             const allSame = digits.split('').every(d => d === digits[0])
-            // Pattern 2: Sequential fraud
-            const sequential = "0123456789".includes(digits) || "9876543210".includes(digits)
+            const sequential = '0123456789'.includes(digits) || '9876543210'.includes(digits)
 
-            // If the math doesn't match the letter, or it's a known junk pattern
-            return allSame || sequential || (lastLetter !== expectedLetter && Math.random() > 0.7)
+            // REMOVED: Math.random() > 0.7 — non-deterministic logic has no place in
+            // compliance verification. A valid PIN must never randomly fail.
+            return allSame || sequential || (lastLetter !== expectedLetter)
         }
 
-        if (isCounterfeitDigitAudit(pin)) {
+        if (isLikelyCounterfeit(pin)) {
             return NextResponse.json({
                 valid: true,
                 formatValid: true,
@@ -80,11 +80,11 @@ export async function POST(req: NextRequest) {
         // Artificial delay to simulate real API handshake
         await new Promise(r => setTimeout(r, 1500))
 
-        // 3. Institutional Grounding (Simulating Vertex AI Search / GavaConnect)
-        // This resolves the "Bias" by cross-referencing against public statutory events
+        // 3. Institutional Grounding
+        // NOTE: This checks only the PIN prefix against known KRA series.
+        // This is NOT a live KRA iTax API call — no real DB lookup occurs.
+        // verificationLevel is honestly reported as 'format_only'.
         const performGrounding = async (pin: string) => {
-            // Expanded Prefix Registry: Accounting for different series (Individual 'A' and Business 'P')
-            // Real-world series include P05, P01, P11, A00, A01, etc.
             const validInstitutionalSeries = [
                 'P05', 'P01', 'P11', 'P12', 'P13', 'P14', 'P15',
                 'A00', 'A01', 'A02', 'A03', 'A10', 'A11', 'A12'
@@ -95,15 +95,11 @@ export async function POST(req: NextRequest) {
 
             if (hasGrounding) {
                 return {
-                    source: 'Vertex Grounding Service',
+                    source: 'Format Prefix Registry (local — not a live KRA API call)',
                     citations: [
                         {
-                            title: 'KRA Public Ledger 2025/26',
+                            title: 'KRA PIN Checker (manual verification)',
                             uri: 'https://itax.kra.go.ke/KRA-Portal/pinChecker.htm'
-                        },
-                        {
-                            title: 'Kenya Gazette Vol. CXXVII - No. 42',
-                            detail: 'Section 4: Licensed Institutional Entities & Digital Taxpayers'
                         }
                     ]
                 }
@@ -112,20 +108,23 @@ export async function POST(req: NextRequest) {
         }
 
         const groundingResults = await performGrounding(pin)
-        const isVerified = !!groundingResults
 
+        // Use format_only — we have not called a live KRA database.
+        // Reporting 'database_verified' without a real API call is misleading
+        // and a liability risk for a compliance product.
         return NextResponse.json({
             valid: true,
             formatValid: true,
-            authentic: isVerified,
+            authentic: !!groundingResults,
             pinType: pin.startsWith('A') ? 'Individual' : 'Business',
-            message: isVerified
-                ? 'Statutory Handshake Success: PIN grounded in KRA Active Ledger & Kenya Gazette.'
-                : 'Format valid, but failed Grounding Audit. PIN not found in current institutional citations.',
-            verificationLevel: isVerified ? 'database_verified' : 'format_only',
-            status: isVerified ? 'Active' : 'Awaiting Registration',
+            message: groundingResults
+                ? 'Format valid and prefix matches known KRA series. Note: This is format-only validation — not a live KRA database lookup.'
+                : 'Format valid, but prefix is not in the known KRA series registry.',
+            verificationLevel: 'format_only',
+            status: 'Unverified — manual KRA check recommended',
             grounding: groundingResults,
-            auditId: `STAT-${Math.random().toString(36).substring(2, 9).toUpperCase()}`
+            disclaimer: 'This result is based on local format validation only. For authoritative verification, use the KRA iTax PIN Checker at itax.kra.go.ke.',
+            auditId: `STAT-${randomUUID()}`
         })
 
     } catch (error: unknown) {

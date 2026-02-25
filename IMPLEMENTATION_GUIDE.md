@@ -106,10 +106,13 @@ npm install axios
 ```typescript
 import axios from 'axios'
 
-const CONSUMER_KEY = process.env.NEXT_PUBLIC_MPESA_CONSUMER_KEY
-const CONSUMER_SECRET = process.env.NEXT_PUBLIC_MPESA_CONSUMER_SECRET
-const PASSKEY = process.env.NEXT_PUBLIC_MPESA_PASSKEY
-const SHORTCODE = process.env.NEXT_PUBLIC_MPESA_SHORTCODE
+// ⚠️ SECURITY: M-Pesa credentials MUST use server-side env vars only.
+// NEVER use NEXT_PUBLIC_MPESA_* — those get bundled into client-side JS
+// and are visible to anyone who opens DevTools → Application → Network.
+const CONSUMER_KEY = process.env.MPESA_CONSUMER_KEY
+const CONSUMER_SECRET = process.env.MPESA_CONSUMER_SECRET
+const PASSKEY = process.env.MPESA_PASSKEY
+const SHORTCODE = process.env.MPESA_SHORTCODE
 
 // Get OAuth token
 export async function getMpesaToken() {
@@ -316,12 +319,16 @@ const handleSelectPlan = async (planName: string, price: string) => {
 
 ```env
 # M-Pesa Credentials (Sandbox)
-NEXT_PUBLIC_MPESA_CONSUMER_KEY=your_consumer_key
-NEXT_PUBLIC_MPESA_CONSUMER_SECRET=your_consumer_secret
-NEXT_PUBLIC_MPESA_PASSKEY=your_passkey
-NEXT_PUBLIC_MPESA_SHORTCODE=174379
+# ⚠️ CRITICAL SECURITY: These must NOT have the NEXT_PUBLIC_ prefix.
+# NEXT_PUBLIC_ variables are bundled into client-side JavaScript and
+# are visible to anyone who opens DevTools. Keep these server-side only.
+MPESA_CONSUMER_KEY=your_consumer_key
+MPESA_CONSUMER_SECRET=your_consumer_secret
+MPESA_PASSKEY=your_passkey
+MPESA_SHORTCODE=174379
+MPESA_ENVIRONMENT=sandbox
 
-# App URL
+# App URL (this one IS safe to be public)
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
@@ -707,12 +714,18 @@ export default function RootLayout({
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=your_production_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_production_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
-# M-Pesa (Production)
-NEXT_PUBLIC_MPESA_CONSUMER_KEY=your_production_key
-NEXT_PUBLIC_MPESA_CONSUMER_SECRET=your_production_secret
-NEXT_PUBLIC_MPESA_PASSKEY=your_production_passkey
-NEXT_PUBLIC_MPESA_SHORTCODE=your_paybill_number
+# M-Pesa Production Credentials
+# ⚠️ NO NEXT_PUBLIC_ prefix — these are server-side secrets only.
+MPESA_CONSUMER_KEY=your_production_key
+MPESA_CONSUMER_SECRET=your_production_secret
+MPESA_PASSKEY=your_production_passkey
+MPESA_SHORTCODE=your_paybill_number
+MPESA_ENVIRONMENT=production
+
+# AI
+GEMINI_API_KEY=your_gemini_key
 
 # App
 NEXT_PUBLIC_APP_URL=https://complyke.vercel.app
@@ -768,4 +781,4 @@ For implementation help:
 
 ---
 
-*Last Updated: December 24, 2024*
+*Last Updated: February 25, 2026 — M-Pesa env var examples corrected to use server-side variables (MPESA_* not NEXT_PUBLIC_MPESA_*).*
