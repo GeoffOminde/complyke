@@ -20,11 +20,18 @@ import {
     Download
 } from "lucide-react"
 
+interface VaultDocument {
+    id: string
+    document_type: string
+    document_name: string
+    created_at: string
+}
+
 export default function InstitutionalProfile() {
     const { profile, user, refreshProfile } = useAuth()
     const { showToast, showAlert } = useInstitutionalUI()
     const [isSaving, setIsSaving] = useState(false)
-    const [documents, setDocuments] = useState<unknown[]>([])
+    const [documents, setDocuments] = useState<VaultDocument[]>([])
     const [isLoadingDocs, setIsLoadingDocs] = useState(false)
 
     const [formData, setFormData] = useState({

@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
 import { useInstitutionalUI } from "@/contexts/ui-context"
 import { supabase } from "@/lib/supabase"
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import ComplianceReportModal from "@/components/compliance-report-modal"
+
+
+import ComplianceReportModal, { AuditResult } from "@/components/compliance-report-modal"
 import {
     Activity,
     ShieldCheck,
@@ -26,7 +26,7 @@ export default function ComplianceReport() {
     const { showToast } = useInstitutionalUI()
     const isSuperAdmin = profile?.role === 'super-admin'
     const [isRunning, setIsRunning] = useState(false)
-    const [auditResults, setAuditResults] = useState<unknown[] | null>(null)
+    const [auditResults, setAuditResults] = useState<AuditResult[] | null>(null)
     const [lastAuditTime, setLastAuditTime] = useState<Date | null>(null)
     const [showModal, setShowModal] = useState(false)
 
@@ -52,7 +52,7 @@ export default function ComplianceReport() {
             vaultCount = count || 0
         }
 
-        const checks = [
+        const checks: AuditResult[] = [
             {
                 id: 'identity',
                 label: 'Institutional Identity',

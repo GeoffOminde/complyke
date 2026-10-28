@@ -5,7 +5,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { ShieldCheck, AlertTriangle, FileCheck2, Download, X } from "lucide-react"
 
-interface AuditResult {
+export interface AuditResult {
     id: string
     label: string
     status: 'pass' | 'fail' | 'warn'
