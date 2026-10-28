@@ -58,10 +58,10 @@ export default function RiskDashboard({ onOpenCompliance }: { onOpenCompliance?:
         { id: "contracts", label: "Employee Contracts", completed: false, icon: <Users className="h-4 w-4" /> },
     ])
 
-    const [auditId, setAuditId] = useState<string>("CKE-INIT")
+    const [auditId] = useState<string>(() => `CKE-DASH-${new Date().getTime().toString(16).toUpperCase()}`)
 
     useEffect(() => {
-        setAuditId(`CKE-DASH-${new Date().getTime().toString(16).toUpperCase()}`)
+
 
         async function fetchComplianceStatus() {
             if (!user) return

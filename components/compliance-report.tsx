@@ -26,7 +26,7 @@ export default function ComplianceReport() {
     const { showToast } = useInstitutionalUI()
     const isSuperAdmin = profile?.role === 'super-admin'
     const [isRunning, setIsRunning] = useState(false)
-    const [auditResults, setAuditResults] = useState<any[] | null>(null)
+    const [auditResults, setAuditResults] = useState<unknown[] | null>(null)
     const [lastAuditTime, setLastAuditTime] = useState<Date | null>(null)
     const [showModal, setShowModal] = useState(false)
 

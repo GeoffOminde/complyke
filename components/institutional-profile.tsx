@@ -24,7 +24,7 @@ export default function InstitutionalProfile() {
     const { profile, user, refreshProfile } = useAuth()
     const { showToast, showAlert } = useInstitutionalUI()
     const [isSaving, setIsSaving] = useState(false)
-    const [documents, setDocuments] = useState<any[]>([])
+    const [documents, setDocuments] = useState<unknown[]>([])
     const [isLoadingDocs, setIsLoadingDocs] = useState(false)
 
     const [formData, setFormData] = useState({
@@ -81,8 +81,9 @@ export default function InstitutionalProfile() {
 
             await refreshProfile()
             showToast("Institutional Identity Updated", "success")
-        } catch (err: any) {
-            showAlert("Update Failed", err.message || "Failed to synchronize profile.")
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : "Failed to synchronize profile."
+            showAlert("Update Failed", message)
         } finally {
             setIsSaving(false)
         }

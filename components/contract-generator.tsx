@@ -226,8 +226,9 @@ export default function ContractGenerator() {
 
             setUploadSuccess(true)
             showToast('Signed instrument archived in Cloud Vault')
-        } catch (error: any) {
-            showAlert('Archival Failure', error.message)
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Unknown error during upload'
+            showAlert('Archival Failure', message)
         } finally {
             setIsUploading(false)
         }

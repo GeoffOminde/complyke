@@ -34,7 +34,7 @@ type ServiceStatus = {
   updated_at: string | null
 }
 
-async function fetchServiceStatuses(userId: string, plan: string | null, profile: any) {
+async function fetchServiceStatuses(userId: string, plan: string | null, profile: Record<string, unknown> | null) {
   const privileges = getPlanPrivileges(plan)
   const services: ServiceStatus[] = []
 

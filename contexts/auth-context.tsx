@@ -214,7 +214,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 console.error('Sign-in Error Object:', error)
                 throw error
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Sign-in Unexpected Exception:', err)
             throw err
         }
